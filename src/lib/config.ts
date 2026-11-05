@@ -21,3 +21,13 @@ export function getFrontendOrigins(env = process.env): Set<string> | null {
   }
   return new Set(origins);
 }
+
+export function getClerkConfig(env = process.env): {
+  publishableKey: string;
+  secretKey: string;
+} | null {
+  const publishableKey = env.CLERK_PUBLISHABLE_KEY?.trim();
+  const secretKey = env.CLERK_SECRET_KEY?.trim();
+  if (!publishableKey || !secretKey) return null;
+  return { publishableKey, secretKey };
+}

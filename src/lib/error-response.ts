@@ -2,6 +2,7 @@ import { apiErrorSchema, type ApiError } from "@/contracts/health";
 
 type ErrorCode = ApiError["error"]["code"];
 const messages: Record<ErrorCode, string> = {
+  AUTHENTICATION_REQUIRED: "Authentication is required.",
   CONFIGURATION_ERROR: "Service configuration is unavailable.",
   ORIGIN_NOT_ALLOWED: "Origin is not allowed.",
   METHOD_NOT_ALLOWED: "Method is not allowed.",

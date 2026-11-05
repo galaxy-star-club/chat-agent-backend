@@ -11,8 +11,9 @@ export function responseHeaders(requestId: string, allowedOrigin?: string): Head
   return headers;
 }
 
-export function preflightHeaders(headers: Headers): void {
+export function preflightHeaders(headers: Headers, allowedHeaders?: string): void {
   headers.set("Allow", "GET, HEAD, OPTIONS");
   headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  if (allowedHeaders) headers.set("Access-Control-Allow-Headers", allowedHeaders);
   headers.set("Access-Control-Max-Age", "600");
 }

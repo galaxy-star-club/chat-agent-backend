@@ -10,7 +10,13 @@ export const healthResponseSchema = z.strictObject({
 
 export const apiErrorSchema = z.strictObject({
   error: z.strictObject({
-    code: z.enum(["ORIGIN_NOT_ALLOWED", "CONFIGURATION_ERROR", "INTERNAL_ERROR", "METHOD_NOT_ALLOWED"]),
+    code: z.enum([
+      "AUTHENTICATION_REQUIRED",
+      "ORIGIN_NOT_ALLOWED",
+      "CONFIGURATION_ERROR",
+      "INTERNAL_ERROR",
+      "METHOD_NOT_ALLOWED",
+    ]),
     message: z.string().min(1),
     requestId: z.uuid(),
   }),

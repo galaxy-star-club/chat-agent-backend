@@ -1,6 +1,6 @@
 # Agentic Chat backend
 
-Independent Next.js REST backend. Plan 01 provides local foundations and a public health endpoint; no product UI, authentication, database, uploads, agent execution, or external providers are implemented.
+Independent Next.js REST backend. It provides local foundations, a public health endpoint, and Clerk session-token authentication. No database, uploads, agent execution, or other external providers are implemented.
 
 ## Local setup
 
@@ -29,6 +29,14 @@ Set `FRONTEND_ORIGINS` to a comma-separated list of exact canonical HTTP or HTTP
 Every handled response has `Cache-Control: no-store`, `Vary: Origin`, and a freshly generated `x-request-id`; inbound IDs are ignored. JSON errors carry the same request ID. Allowed origins receive the exact allow-origin header and can read `x-request-id`. Credentials are not enabled. Requests without Origin can read public health; CORS is a browser policy, not authentication or authorization for future protected products.
 
 The route delegates to the health controller, which adapts HTTP and calls a pure health service. Shared configuration, CORS and error helpers live in `src/lib`. ESLint keeps persistence and provider adapters out of routes and Next.js imports out of services. Future persistence must use table-specific repositories behind owning-domain services.
+
+## Clerk authentication
+
+Set `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` in `.env.local` from the same Clerk application used by the frontend. The example file intentionally contains no credentials. Do not expose the secret key to the frontend or commit either real value.
+
+`GET /api/v1/auth/session` is a minimal protected endpoint. Cross-origin clients must send the Clerk session token as `Authorization: Bearer <session-token>`. The server accepts session tokens only and asks Clerk to verify that the token's authorized party matches one of the exact, validated `FRONTEND_ORIGINS`. Cookie-only requests are not accepted. A successful response contains only `userId` and `sessionId`; missing or invalid authentication returns safe `AUTHENTICATION_REQUIRED` JSON with 401. The route uses the same request ID, CORS, no-store, error, controller and service conventions as health. Its preflight permits the `Authorization` header without enabling credentialed CORS.
+
+The public `/api/v1/health` endpoint does not require Clerk configuration or authentication. Without real Clerk keys and a session token from the matching frontend application, local verification of the protected endpoint cannot succeed.
 
 ## Future Vercel project setup
 
