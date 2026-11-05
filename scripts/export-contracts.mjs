@@ -11,6 +11,13 @@ const revision = execFileSync("git", ["rev-parse", "HEAD"], {
   cwd: root,
   encoding: "utf8",
 }).trim();
+const committedSource = execFileSync("git", ["show", `${revision}:src/contracts/health.ts`], {
+  cwd: root,
+  encoding: "utf8",
+});
+if (source !== committedSource) {
+  throw new Error("Commit the authoritative contract before exporting so its revision is reproducible.");
+}
 const schemaVersion = source.match(/CONTRACT_VERSION = "([^"]+)"/)?.[1];
 if (!schemaVersion) throw new Error("Health contract version is missing");
 
