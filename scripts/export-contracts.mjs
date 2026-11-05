@@ -6,27 +6,36 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const target = resolve(process.argv[2] ?? resolve(root, "dist/contracts"));
-const source = await readFile(resolve(root, "src/contracts/health.ts"), "utf8");
+const contractFiles = ["auth.ts", "health.ts"];
+const sources = Object.fromEntries(await Promise.all(contractFiles.map(async (file) => [
+  file,
+  await readFile(resolve(root, "src/contracts", file), "utf8"),
+])));
 const revision = execFileSync("git", ["rev-parse", "HEAD"], {
   cwd: root,
   encoding: "utf8",
 }).trim();
-const committedSource = execFileSync("git", ["show", `${revision}:src/contracts/health.ts`], {
-  cwd: root,
-  encoding: "utf8",
-});
-if (source !== committedSource) {
-  throw new Error("Commit the authoritative contract before exporting so its revision is reproducible.");
+for (const file of contractFiles) {
+  const committedSource = execFileSync("git", ["show", `${revision}:src/contracts/${file}`], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  if (sources[file] !== committedSource) {
+    throw new Error("Commit the authoritative contracts before exporting so their revision is reproducible.");
+  }
 }
-const schemaVersion = source.match(/CONTRACT_VERSION = "([^"]+)"/)?.[1];
+const schemaVersion = sources["health.ts"].match(/CONTRACT_VERSION = "([^"]+)"/)?.[1];
 if (!schemaVersion) throw new Error("Health contract version is missing");
 
 await mkdir(target, { recursive: true });
-await writeFile(resolve(target, "health.ts"), source);
+for (const file of contractFiles) await writeFile(resolve(target, file), sources[file]);
 await writeFile(resolve(target, "manifest.json"), JSON.stringify({
   schemaVersion,
   sourceRepository: "backend",
   sourceRevision: revision,
-  files: { "health.ts": createHash("sha256").update(source).digest("hex") },
+  files: Object.fromEntries(contractFiles.map((file) => [
+    file,
+    createHash("sha256").update(sources[file]).digest("hex"),
+  ])),
 }, null, 2) + "\n");
 console.log(`Exported contracts from backend revision ${revision}`);
