@@ -9,10 +9,12 @@ const target = resolve(process.argv[2] ?? resolve(root, "dist/contracts"));
 const contractFiles = [
   "api.ts",
   "auth.ts",
+  "chats.ts",
   "content.ts",
   "database-readiness.ts",
   "health.ts",
   "json.ts",
+  "messages.ts",
   "pagination.ts",
   "run.ts",
   "tools.ts",
