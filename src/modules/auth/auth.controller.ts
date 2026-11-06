@@ -1,8 +1,9 @@
 import { currentSessionResponseSchema } from "@/contracts/auth";
 import { getClerkConfig, getFrontendOrigins } from "@/lib/config";
 import { preflightHeaders, responseHeaders } from "@/lib/cors";
-import { errorResponse } from "@/lib/error-response";
+import { errorResponse, mapErrorToResponse } from "@/lib/error-response";
 import { authenticateRequest } from "@/lib/request-auth.server";
+import { createTraceContext } from "@/lib/trace-context";
 import { getCurrentSession } from "./auth.service";
 
 export async function authController(request: Request): Promise<Response> {
@@ -13,7 +14,8 @@ export async function authController(request: Request): Promise<Response> {
 }
 
 async function handleAuth(request: Request): Promise<Response> {
-  const requestId = crypto.randomUUID();
+  const trace = createTraceContext();
+  const requestId = trace.requestId;
   let headers = responseHeaders(requestId);
   try {
     const origins = getFrontendOrigins();
@@ -44,7 +46,7 @@ async function handleAuth(request: Request): Promise<Response> {
 
     const session = currentSessionResponseSchema.parse(getCurrentSession(identity));
     return Response.json(session, { headers });
-  } catch {
-    return errorResponse("INTERNAL_ERROR", 500, requestId, headers);
+  } catch (error) {
+    return mapErrorToResponse(error, trace, headers);
   }
 }

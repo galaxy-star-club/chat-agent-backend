@@ -1,7 +1,8 @@
 import { databaseReadinessResponseSchema } from "@/contracts/database-readiness";
 import { getFrontendOrigins } from "@/lib/config";
 import { preflightHeaders, responseHeaders } from "@/lib/cors";
-import { errorResponse } from "@/lib/error-response";
+import { errorResponse, mapErrorToResponse } from "@/lib/error-response";
+import { createTraceContext } from "@/lib/trace-context";
 import { getDatabaseReadiness } from "./database-readiness.service";
 
 export async function databaseController(request: Request): Promise<Response> {
@@ -12,7 +13,8 @@ export async function databaseController(request: Request): Promise<Response> {
 }
 
 async function handleDatabaseReadiness(request: Request): Promise<Response> {
-  const requestId = crypto.randomUUID();
+  const trace = createTraceContext();
+  const requestId = trace.requestId;
   let headers = responseHeaders(requestId);
 
   try {
@@ -43,7 +45,7 @@ async function handleDatabaseReadiness(request: Request): Promise<Response> {
     }
 
     return Response.json(databaseReadinessResponseSchema.parse(result.response), { headers });
-  } catch {
-    return errorResponse("INTERNAL_ERROR", 500, requestId, headers);
+  } catch (error) {
+    return mapErrorToResponse(error, trace, headers);
   }
 }

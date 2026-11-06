@@ -1,7 +1,8 @@
 import { healthResponseSchema } from "@/contracts/health";
 import { getFrontendOrigins } from "@/lib/config";
 import { preflightHeaders, responseHeaders } from "@/lib/cors";
-import { errorResponse } from "@/lib/error-response";
+import { errorResponse, mapErrorToResponse } from "@/lib/error-response";
+import { createTraceContext } from "@/lib/trace-context";
 import { getHealth } from "./health.service";
 
 export function healthController(request: Request): Response {
@@ -12,7 +13,8 @@ export function healthController(request: Request): Response {
 }
 
 function handleHealth(request: Request): Response {
-  const requestId = crypto.randomUUID();
+  const trace = createTraceContext();
+  const requestId = trace.requestId;
   let headers = responseHeaders(requestId);
   try {
     const origins = getFrontendOrigins();
@@ -33,7 +35,7 @@ function handleHealth(request: Request): Response {
     }
     const health = healthResponseSchema.parse(getHealth());
     return Response.json(health, { headers });
-  } catch {
-    return errorResponse("INTERNAL_ERROR", 500, requestId, headers);
+  } catch (error) {
+    return mapErrorToResponse(error, trace, headers);
   }
 }

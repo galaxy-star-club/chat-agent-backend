@@ -1,7 +1,8 @@
-import { apiErrorSchema, type ApiError } from "@/contracts/health";
+import { apiErrorSchema, type ApiErrorCode } from "@/contracts/api";
+import type { TraceContext } from "@/contracts/trace";
+import { logError } from "./logger";
 
-type ErrorCode = ApiError["error"]["code"];
-const messages: Record<ErrorCode, string> = {
+const messages: Record<ApiErrorCode, string> = {
   AUTHENTICATION_REQUIRED: "Authentication is required.",
   CONFIGURATION_ERROR: "Service configuration is unavailable.",
   DATABASE_UNAVAILABLE: "Database is unavailable.",
@@ -10,7 +11,12 @@ const messages: Record<ErrorCode, string> = {
   INTERNAL_ERROR: "An internal error occurred.",
 };
 
-export function errorResponse(code: ErrorCode, status: number, requestId: string, headers: Headers): Response {
+export function errorResponse(code: ApiErrorCode, status: number, requestId: string, headers: Headers): Response {
   const body = apiErrorSchema.parse({ error: { code, message: messages[code], requestId } });
   return Response.json(body, { status, headers });
+}
+
+export function mapErrorToResponse(error: unknown, trace: TraceContext, headers: Headers): Response {
+  logError("request_failed", trace, { error });
+  return errorResponse("INTERNAL_ERROR", 500, trace.requestId, headers);
 }
