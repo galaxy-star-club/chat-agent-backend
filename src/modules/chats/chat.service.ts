@@ -3,6 +3,7 @@ import {
   claimActiveRun,
   createChat,
   deleteOwnedChat,
+  findChat,
   findOwnedChat,
   findOwnedChats,
   releaseActiveRun,
@@ -79,6 +80,10 @@ export function getOwnedChatInTransaction(
   chatId: string,
 ) {
   return findOwnedChat(transaction, chatId, ownerId);
+}
+
+export function getChatInTransaction(transaction: DatabaseTransaction, chatId: string) {
+  return findChat(transaction, chatId);
 }
 
 export function claimChatActiveRun(

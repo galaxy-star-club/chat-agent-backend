@@ -1,9 +1,10 @@
 import type { JsonValue } from "@/contracts/json";
-import { withTransaction } from "@/lib/database.server";
 import { getOwnedAgentRunInTransaction } from "@/modules/agent-runs/agent-run.service";
+import { withTransaction, type DatabaseTransaction } from "@/lib/database.server";
 import {
   createDurableSession,
   findDurableSession,
+  findDurableSessionByKey,
   updateDurableSessionState,
 } from "./durable-session.repository";
 
@@ -38,6 +39,29 @@ export function recordDurableSession(input: CreateDurableSessionInput) {
 }
 
 export type UpdateDurableSessionStateInput = { ownerId: string; id: string; state: JsonValue };
+
+export function findDurableSessionByKeyInTransaction(
+  transaction: DatabaseTransaction,
+  runId: string,
+  idempotencyKey: string,
+) {
+  return findDurableSessionByKey(transaction, runId, idempotencyKey);
+}
+
+export function createDurableSessionInTransaction(
+  transaction: DatabaseTransaction,
+  input: Omit<CreateDurableSessionInput, "ownerId">,
+) {
+  return createDurableSession(transaction, input);
+}
+
+export function updateDurableSessionStateInTransaction(
+  transaction: DatabaseTransaction,
+  id: string,
+  state: JsonValue,
+) {
+  return updateDurableSessionState(transaction, id, state);
+}
 
 export function recordDurableSessionState(input: UpdateDurableSessionStateInput) {
   return withTransaction(async (transaction) => {

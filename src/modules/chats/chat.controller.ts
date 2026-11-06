@@ -107,6 +107,7 @@ function toChat(chat: {
   id: string;
   title: string | null;
   isFavorite: boolean;
+  activeRunId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -114,6 +115,7 @@ function toChat(chat: {
     id: chat.id,
     title: chat.title,
     isFavorite: chat.isFavorite,
+    activeRunId: chat.activeRunId,
     createdAt: chat.createdAt.toISOString(),
     updatedAt: chat.updatedAt.toISOString(),
   };

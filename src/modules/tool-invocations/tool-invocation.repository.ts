@@ -17,6 +17,33 @@ export function createToolInvocation(
   });
 }
 
+export function findToolInvocation(
+  transaction: Prisma.TransactionClient,
+  runId: string,
+  callId: string,
+) {
+  return transaction.toolInvocation.findUnique({ where: { runId_callId: { runId, callId } } });
+}
+
+export function listToolInvocations(transaction: Prisma.TransactionClient, runId: string) {
+  return transaction.toolInvocation.findMany({
+    where: { runId },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: 100,
+  });
+}
+
+export function markToolInvocationRunning(
+  transaction: Prisma.TransactionClient,
+  runId: string,
+  callId: string,
+) {
+  return transaction.toolInvocation.updateMany({
+    where: { runId, callId, status: "pending" },
+    data: { status: "running", startedAt: new Date() },
+  });
+}
+
 export function completeToolInvocation(
   transaction: Prisma.TransactionClient,
   runId: string,

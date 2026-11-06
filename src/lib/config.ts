@@ -51,3 +51,31 @@ export function getDatabaseUrl(env = process.env): string | null {
   const result = databaseUrlSchema.safeParse(env.DATABASE_URL);
   return result.success ? result.data : null;
 }
+
+/** The only model this service is allowed to request. */
+export const freeModelId = "openrouter/free";
+
+const freeModelSchema = z.literal(freeModelId);
+const maxModelTurnsSchema = z.coerce.number().int().min(1).max(8);
+
+/**
+ * Conservative loop bound used when AGENT_MAX_TURNS is unset.
+ * Values outside 1–8 are rejected rather than clamped.
+ */
+export const defaultMaxModelTurns = 4;
+
+export function getMaxModelTurns(env = process.env): number | null {
+  const configured = env.AGENT_MAX_TURNS;
+  if (configured === undefined || configured.trim() === "") return defaultMaxModelTurns;
+  const result = maxModelTurnsSchema.safeParse(configured);
+  return result.success ? result.data : null;
+}
+
+export function getOpenRouterConfig(env = process.env): { apiKey: string; model: typeof freeModelId } | null {
+  const apiKey = env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) return null;
+  const configured = env.OPENROUTER_MODEL?.trim() || freeModelId;
+  const model = freeModelSchema.safeParse(configured);
+  if (!model.success) return null;
+  return { apiKey, model: model.data };
+}

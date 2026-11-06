@@ -30,6 +30,28 @@ export function findMessageByClientRequestId(
   });
 }
 
+export function updateMessage(
+  transaction: Prisma.TransactionClient,
+  id: string,
+  input: { content: ContentBlock[]; status: MessageStatus },
+) {
+  const content = contentBlocksSchema.parse(input.content) as Prisma.InputJsonValue;
+  return transaction.message.update({ where: { id }, data: { content, status: input.status } });
+}
+
+export function findRecentMessages(
+  transaction: Prisma.TransactionClient,
+  chatId: string,
+  limit: number,
+) {
+  const take = Math.min(Math.max(Math.trunc(limit), 1), 100);
+  return transaction.message.findMany({
+    where: { chatId },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take,
+  });
+}
+
 export function findMessagesForChat(
   transaction: Prisma.TransactionClient,
   chatId: string,

@@ -63,6 +63,23 @@ export async function applyCreditChangeInTransaction(
   });
 }
 
+export async function settleFreeModelRunInTransaction(
+  transaction: DatabaseTransaction,
+  input: { ownerId: string; runId: string; metadata: JsonValue },
+) {
+  const account = await findOrCreateCreditAccount(transaction, input.ownerId, initialCreditBalance);
+  const admission = await findCreditLedgerEntry(transaction, account.id, `admission:${input.runId}`);
+  return applyCreditChangeInTransaction(transaction, {
+    ownerId: input.ownerId,
+    runId: input.runId,
+    idempotencyKey: `settlement:${input.runId}`,
+    deltaBalance: BigInt(0),
+    deltaReserved: -(admission?.deltaReserved ?? BigInt(0)),
+    reason: "free_model_settlement",
+    metadata: input.metadata,
+  });
+}
+
 export async function refundAdmissionReservationInTransaction(
   transaction: DatabaseTransaction,
   ownerId: string,

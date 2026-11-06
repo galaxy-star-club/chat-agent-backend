@@ -21,6 +21,7 @@ export const chatSchema = z.strictObject({
   id: chatIdSchema,
   title: z.string().nullable(),
   isFavorite: z.boolean(),
+  activeRunId: z.uuid().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

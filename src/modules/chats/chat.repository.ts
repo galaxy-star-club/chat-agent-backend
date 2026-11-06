@@ -20,6 +20,10 @@ export function findOwnedChat(transaction: Prisma.TransactionClient, id: string,
   return transaction.chat.findFirst({ where: { id, ownerId } });
 }
 
+export function findChat(transaction: Prisma.TransactionClient, id: string) {
+  return transaction.chat.findUnique({ where: { id } });
+}
+
 export function findOwnedChats(transaction: Prisma.TransactionClient, input: FindOwnedChatsInput) {
   const filters: Prisma.ChatWhereInput[] = [
     { ownerId: input.ownerId },

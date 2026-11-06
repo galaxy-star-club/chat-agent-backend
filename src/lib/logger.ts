@@ -18,3 +18,9 @@ export function redact(value: unknown, seen = new WeakSet<object>()): unknown {
 export function logError(event: string, trace: TraceContext, details: Record<string, unknown> = {}): void {
   console.error(JSON.stringify({ ...redact(details) as object, level: "error", event, ...trace }));
 }
+
+export function logRun(level: "info" | "error", event: string, traceId: string, details: Record<string, unknown> = {}): void {
+  const line = JSON.stringify({ ...redact(details) as object, level, event, traceId });
+  if (level === "error") console.error(line);
+  else console.info(line);
+}

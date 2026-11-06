@@ -20,6 +20,16 @@ export function findDurableSession(transaction: Prisma.TransactionClient, id: st
   return transaction.durableSession.findUnique({ where: { id } });
 }
 
+export function findDurableSessionByKey(
+  transaction: Prisma.TransactionClient,
+  runId: string,
+  idempotencyKey: string,
+) {
+  return transaction.durableSession.findUnique({
+    where: { runId_idempotencyKey: { runId, idempotencyKey } },
+  });
+}
+
 export function updateDurableSessionState(
   transaction: Prisma.TransactionClient,
   id: string,

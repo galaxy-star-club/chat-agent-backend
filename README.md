@@ -1,6 +1,6 @@
 # Agentic Chat backend
 
-Independent Next.js REST backend. It provides Clerk session-token authentication, PostgreSQL/Prisma domain persistence, owned chat and message admission, and backend-owned shared contracts. Message admission can dispatch a Trigger.dev task when `TRIGGER_SECRET_KEY` is set. No model execution, uploads, or deployment are implemented.
+Independent Next.js REST backend. It provides Clerk session-token authentication, PostgreSQL/Prisma domain persistence, owned chat and message admission, and backend-owned shared contracts. Message admission dispatches Trigger.dev task `agent-run` when `TRIGGER_SECRET_KEY` is set. The task executes only a configured `openrouter/free` model when `OPENROUTER_API_KEY` is set. Uploads, Magica, and deployment are not implemented.
 
 ## Local setup
 

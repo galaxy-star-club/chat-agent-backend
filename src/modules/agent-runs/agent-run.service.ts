@@ -1,4 +1,4 @@
-import type { RunStatus } from "@/contracts/run";
+import { agentRunRecordSchema, runStatusSchema, type AgentRunRecord, type RunStatus } from "@/contracts/run";
 import { withTransaction, type DatabaseTransaction } from "@/lib/database.server";
 import {
   claimChatActiveRun,
@@ -6,13 +6,17 @@ import {
   releaseChatActiveRun,
 } from "@/modules/chats/chat.service";
 import {
+  compareAndSetAgentRun,
   countOwnedRunsSince,
   createAgentRun,
   findAgentRun,
   findAgentRunByIdempotencyKey,
   findOwnedAgentRun,
-  updateAgentRunStatus,
+  saveAgentRunProgress,
+  type AgentRunOutcome,
 } from "./agent-run.repository";
+import { runError } from "./run-errors";
+import { assertRunTransition, isTerminalRunStatus } from "./run-transitions";
 
 export interface AgentRunService {
   start(input: StartAgentRunInput): ReturnType<typeof startAgentRun>;
@@ -60,11 +64,17 @@ export function finishAgentRun(input: FinishAgentRunInput) {
   return withTransaction(async (transaction) => {
     const chat = await getOwnedChatInTransaction(transaction, input.ownerId, input.chatId);
     if (!chat || chat.activeRunId !== input.runId) throw new Error("Active run not found.");
-    const run = await updateAgentRunStatus(transaction, input.runId, input.status, {
+    const current = await findAgentRun(transaction, input.runId);
+    if (!current || current.chatId !== input.chatId) throw new Error("Active run not found.");
+    const status = runStatusSchema.parse(current.status);
+    if (status === input.status) return current;
+    assertRunTransition(status, input.status);
+    const changed = await compareAndSetAgentRun(transaction, input.runId, status, input.status, {
       finishedAt: new Date(),
     });
+    if (changed.count !== 1) throw new Error("Active run not found.");
     await releaseChatActiveRun(transaction, input.chatId, input.runId);
-    return run;
+    return findAgentRun(transaction, input.runId);
   });
 }
 
@@ -95,9 +105,81 @@ export function createPendingRunInTransaction(
   return createAgentRun(transaction, input);
 }
 
-export function markRunFailedInTransaction(transaction: DatabaseTransaction, runId: string) {
-  return updateAgentRunStatus(transaction, runId, "failed", { finishedAt: new Date() });
+export async function markRunFailedInTransaction(transaction: DatabaseTransaction, runId: string) {
+  const failure = runError("dispatch_failed");
+  const changed = await compareAndSetAgentRun(transaction, runId, "pending", "failed", {
+    finishedAt: new Date(),
+    errorCode: failure.code,
+    errorMessage: failure.message,
+  });
+  if (changed.count !== 1) return null;
+  return findAgentRun(transaction, runId);
 }
+
+export function transitionAgentRunInTransaction(
+  transaction: DatabaseTransaction,
+  id: string,
+  from: RunStatus,
+  to: RunStatus,
+  outcome: AgentRunOutcome = {},
+) {
+  assertRunTransition(from, to);
+  return compareAndSetAgentRun(transaction, id, from, to, outcome);
+}
+
+export function saveRunProgressInTransaction(
+  transaction: DatabaseTransaction,
+  id: string,
+  outcome: Pick<AgentRunOutcome, "requestedModel" | "routedModel" | "inputTokens" | "outputTokens">,
+) {
+  return saveAgentRunProgress(transaction, id, outcome);
+}
+
+export async function getOwnedAgentRunRecord(
+  ownerId: string,
+  chatId: string,
+  runId: string,
+): Promise<AgentRunRecord | null> {
+  const run = await withTransaction(async (transaction) => {
+    const chat = await getOwnedChatInTransaction(transaction, ownerId, chatId);
+    if (!chat) return null;
+    const found = await findAgentRun(transaction, runId);
+    if (!found || found.chatId !== chatId) return null;
+    return found;
+  });
+  if (!run) return null;
+  return toAgentRunRecord(run);
+}
+
+export function toAgentRunRecord(run: {
+  id: string;
+  chatId: string;
+  status: string;
+  requestedModel: string | null;
+  routedModel: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  traceId: string;
+}): AgentRunRecord {
+  const usage = run.inputTokens !== null && run.outputTokens !== null
+    ? { inputTokens: run.inputTokens, outputTokens: run.outputTokens }
+    : null;
+  const error = run.errorCode && run.errorMessage ? { code: run.errorCode, message: run.errorMessage } : null;
+  return agentRunRecordSchema.parse({
+    id: run.id,
+    chatId: run.chatId,
+    status: runStatusSchema.parse(run.status),
+    requestedModel: run.requestedModel,
+    routedModel: run.routedModel,
+    usage,
+    error,
+    traceId: run.traceId,
+  });
+}
+
+export { isTerminalRunStatus };
 
 export function getOwnedAgentRunInTransaction(
   transaction: DatabaseTransaction,

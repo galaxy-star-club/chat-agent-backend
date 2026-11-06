@@ -4,8 +4,6 @@ import { z } from "zod";
 export const agentRunTaskId = "agent-run";
 
 export const agentRunPayloadSchema = z.strictObject({
-  chatId: z.uuid(),
-  messageId: z.uuid(),
   runId: z.uuid(),
 });
 

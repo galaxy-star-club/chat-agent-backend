@@ -2,7 +2,14 @@ import type { ToolCall, ToolResult } from "@/contracts/tools";
 import { withTransaction } from "@/lib/database.server";
 import { getOwnedAgentRunInTransaction } from "@/modules/agent-runs/agent-run.service";
 import { getMessageInTransaction } from "@/modules/messages/message.service";
-import { completeToolInvocation, createToolInvocation } from "./tool-invocation.repository";
+import type { DatabaseTransaction } from "@/lib/database.server";
+import {
+  completeToolInvocation,
+  createToolInvocation,
+  findToolInvocation,
+  listToolInvocations,
+  markToolInvocationRunning,
+} from "./tool-invocation.repository";
 
 export interface ToolInvocationService {
   recordCall(input: RecordToolCallInput): ReturnType<typeof recordToolCall>;
@@ -33,6 +40,41 @@ export function recordToolCall(input: RecordToolCallInput) {
 }
 
 export type RecordToolResultInput = { ownerId: string; runId: string; result: ToolResult };
+
+export function listToolInvocationsInTransaction(transaction: DatabaseTransaction, runId: string) {
+  return listToolInvocations(transaction, runId);
+}
+
+export function findToolInvocationInTransaction(
+  transaction: DatabaseTransaction,
+  runId: string,
+  callId: string,
+) {
+  return findToolInvocation(transaction, runId, callId);
+}
+
+export function createToolInvocationInTransaction(
+  transaction: DatabaseTransaction,
+  input: { runId: string; messageId?: string; call: ToolCall },
+) {
+  return createToolInvocation(transaction, input);
+}
+
+export function markToolRunningInTransaction(
+  transaction: DatabaseTransaction,
+  runId: string,
+  callId: string,
+) {
+  return markToolInvocationRunning(transaction, runId, callId);
+}
+
+export function completeToolInvocationInTransaction(
+  transaction: DatabaseTransaction,
+  runId: string,
+  result: ToolResult,
+) {
+  return completeToolInvocation(transaction, runId, result);
+}
 
 export function recordToolResult(input: RecordToolResultInput) {
   return withTransaction(async (transaction) => {

@@ -80,11 +80,7 @@ export async function admitOwnedMessage(input: AdmitInput): Promise<MessageAdmis
   }
   if (admission.status !== "pending") return admission;
   try {
-    await dispatchAdmittedRun({
-      chatId: admission.chatId,
-      messageId: admission.messageId,
-      runId: admission.runId,
-    });
+    await dispatchAdmittedRun({ runId: admission.runId });
     return admission;
   } catch {
     return failAdmittedRun({
@@ -171,8 +167,13 @@ async function failAdmittedRun(input: {
     const run = await getOwnedAgentRunInTransaction(transaction, input.ownerId, input.runId);
     if (!run || run.chatId !== input.chatId) throw new Error("Agent run not found.");
     if (run.status !== "pending") return admissionFrom(run, input.messageId, true);
-    await refundAdmissionReservationInTransaction(transaction, input.ownerId, input.runId);
     const failed = await markRunFailedInTransaction(transaction, input.runId);
+    if (!failed) {
+      const current = await getOwnedAgentRunInTransaction(transaction, input.ownerId, input.runId);
+      if (!current) throw new Error("Agent run not found.");
+      return admissionFrom(current, input.messageId, true);
+    }
+    await refundAdmissionReservationInTransaction(transaction, input.ownerId, input.runId);
     await releaseChatActiveRun(transaction, input.chatId, input.runId);
     return admissionFrom(failed, input.messageId, false);
   });
