@@ -36,4 +36,18 @@ describe("request infrastructure", () => {
     expect(JSON.parse(String(log))).toMatchObject({ level: "error", event: "request_failed", ...trace, error: { name: "Error" } });
     expect(String(log)).not.toContain("database password");
   });
+
+  it.each([
+    "database password",
+    { message: "token=private", authorization: "Bearer private" },
+  ])("does not log a non-Error thrown value", (error) => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mapErrorToResponse(error, createTraceContext(), new Headers());
+
+    const log = String(consoleError.mock.calls[0]?.[0]);
+    expect(log).toContain('"name":"Error"');
+    expect(log).not.toContain("database password");
+    expect(log).not.toContain("token=private");
+    expect(log).not.toContain("Bearer private");
+  });
 });
