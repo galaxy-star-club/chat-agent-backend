@@ -1,6 +1,6 @@
 # Agentic Chat backend
 
-Independent Next.js REST backend. It provides local foundations, Clerk session-token authentication, a Prisma/PostgreSQL database foundation, and backend-owned shared contracts. No product domain tables, uploads, agent execution, or other external providers are implemented.
+Independent Next.js REST backend. It provides Clerk session-token authentication, PostgreSQL/Prisma domain persistence, and backend-owned shared contracts. No conversation endpoints, uploads, agent execution, or external providers are implemented.
 
 ## Local setup
 
@@ -47,7 +47,7 @@ The public `/api/v1/health` endpoint does not require Clerk configuration or aut
 
 ## PostgreSQL and Prisma
 
-This repository contains only the database foundation and an empty committed baseline migration. Product tables belong to later approved plans.
+The committed domain migration adds chats, messages, agent runs, ordered attachments, tool invocations, loaded skills, waitpoints, durable sessions, credit accounts, and an idempotent credit ledger. Foreign keys, ownership-scoped services, `(createdAt, id)` indexes, active-run coordination, JSON validation, and idempotency constraints form the persistence boundary. Conversation APIs and product behavior belong to later plans.
 
 Keep runtime and release credentials separate:
 
