@@ -22,6 +22,12 @@ export function findAgentRun(transaction: Prisma.TransactionClient, id: string) 
   return transaction.agentRun.findUnique({ where: { id } });
 }
 
+export function countOwnedRunsSince(transaction: Prisma.TransactionClient, ownerId: string, since: Date) {
+  return transaction.agentRun.count({
+    where: { createdAt: { gte: since }, chat: { ownerId } },
+  });
+}
+
 export function findOwnedAgentRun(
   transaction: Prisma.TransactionClient,
   id: string,

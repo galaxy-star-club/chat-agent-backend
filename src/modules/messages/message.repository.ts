@@ -20,6 +20,16 @@ export function findMessage(transaction: Prisma.TransactionClient, id: string) {
   return transaction.message.findUnique({ where: { id } });
 }
 
+export function findMessageByClientRequestId(
+  transaction: Prisma.TransactionClient,
+  chatId: string,
+  clientRequestId: string,
+) {
+  return transaction.message.findUnique({
+    where: { chatId_clientRequestId: { chatId, clientRequestId } },
+  });
+}
+
 export function findMessagesForChat(
   transaction: Prisma.TransactionClient,
   chatId: string,

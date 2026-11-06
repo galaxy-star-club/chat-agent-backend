@@ -20,6 +20,7 @@
     "@clerk/backend": "^3.27.0",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
+    "@trigger.dev/sdk": "4.8.3",
     "next": "16.4.5",
     "zod": "^4.6.7"
   },

@@ -11,6 +11,10 @@ export const apiErrorCodeSchema = z.enum([
   "METHOD_NOT_ALLOWED",
   "INVALID_REQUEST",
   "NOT_FOUND",
+  "RATE_LIMITED",
+  "ACTIVE_RUN",
+  "IDEMPOTENCY_CONFLICT",
+  "INSUFFICIENT_CREDITS",
 ]);
 
 export const apiErrorSchema = z.strictObject({

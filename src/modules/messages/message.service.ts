@@ -5,7 +5,7 @@ import { getAgentRunInTransaction } from "@/modules/agent-runs/agent-run.service
 import { getOwnedChatInTransaction } from "@/modules/chats/chat.service";
 import { ChatNotFoundError } from "@/modules/chats/chat.service";
 import { decodeKeysetCursor, encodeKeysetCursor } from "@/lib/keyset-cursor";
-import { createMessage, findMessage, findMessagesForChat } from "./message.repository";
+import { createMessage, findMessage, findMessageByClientRequestId, findMessagesForChat } from "./message.repository";
 
 export interface MessageService {
   create(input: CreateOwnedMessageInput): ReturnType<typeof createOwnedMessage>;
@@ -42,6 +42,28 @@ export function createOwnedMessage(input: CreateOwnedMessageInput) {
 
 export function getMessageInTransaction(transaction: DatabaseTransaction, id: string) {
   return findMessage(transaction, id);
+}
+
+export function createUserMessageInTransaction(
+  transaction: DatabaseTransaction,
+  input: CreateOwnedMessageInput & { clientRequestId: string; runId: string },
+) {
+  return createMessage(transaction, {
+    chatId: input.chatId,
+    runId: input.runId,
+    clientRequestId: input.clientRequestId,
+    role: "user",
+    status: "completed",
+    content: input.content,
+  });
+}
+
+export function findOwnedMessageByClientRequestInTransaction(
+  transaction: DatabaseTransaction,
+  chatId: string,
+  clientRequestId: string,
+) {
+  return findMessageByClientRequestId(transaction, chatId, clientRequestId);
 }
 
 export async function listOwnedChatMessages(

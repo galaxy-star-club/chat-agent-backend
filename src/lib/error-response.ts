@@ -10,6 +10,10 @@ const messages: Record<ApiErrorCode, string> = {
   METHOD_NOT_ALLOWED: "Method is not allowed.",
   INVALID_REQUEST: "Request is invalid.",
   NOT_FOUND: "Resource was not found.",
+  RATE_LIMITED: "Too many messages were sent. Try again in a minute.",
+  ACTIVE_RUN: "This chat already has an active run.",
+  IDEMPOTENCY_CONFLICT: "This send does not match the earlier request.",
+  INSUFFICIENT_CREDITS: "There are not enough credits to start this run.",
   INTERNAL_ERROR: "An internal error occurred.",
 };
 

@@ -2,7 +2,7 @@ import { ZodError } from "zod";
 import { apiSuccessSchema } from "@/contracts/api";
 import { chatIdSchema } from "@/contracts/chats";
 import { contentBlocksSchema } from "@/contracts/content";
-import { messageListResponseSchema, type MessageRecord } from "@/contracts/messages";
+import { messageAdmissionResponseSchema, messageListResponseSchema, submitMessageRequestSchema, type MessageRecord } from "@/contracts/messages";
 import { cursorPaginationQuerySchema } from "@/contracts/pagination";
 import { getClerkConfig, getFrontendOrigins } from "@/lib/config";
 import { responseHeaders } from "@/lib/cors";
@@ -11,9 +11,10 @@ import { InvalidCursorError } from "@/lib/keyset-cursor";
 import { authenticateRequest } from "@/lib/request-auth.server";
 import { createTraceContext } from "@/lib/trace-context";
 import { ChatNotFoundError } from "@/modules/chats/chat.service";
+import { admitOwnedMessage, ActiveRunError, DispatchNotConfiguredError, IdempotencyConflictError, InsufficientCreditError, RateLimitError } from "@/modules/admission/message-admission.service";
 import { listOwnedChatMessages } from "./message.service";
 
-const allowedMethods = ["GET", "HEAD", "OPTIONS"];
+const allowedMethods = ["GET", "HEAD", "OPTIONS", "POST"];
 
 export async function messageController(request: Request, rawChatId: string): Promise<Response> {
   const trace = createTraceContext();
@@ -29,7 +30,7 @@ export async function messageController(request: Request, rawChatId: string): Pr
     if (request.method === "OPTIONS") {
       headers.set("Allow", allowedMethods.join(", "));
       headers.set("Access-Control-Allow-Methods", allowedMethods.join(", "));
-      headers.set("Access-Control-Allow-Headers", "Authorization");
+      headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
       headers.set("Access-Control-Max-Age", "600");
       return new Response(null, { status: 204, headers });
     }
@@ -40,6 +41,30 @@ export async function messageController(request: Request, rawChatId: string): Pr
     const identity = await authenticateRequest(request, clerkConfig, origins);
     if (!identity) return errorResponse("AUTHENTICATION_REQUIRED", 401, requestId, headers);
     const chatId = chatIdSchema.parse(rawChatId);
+    if (request.method === "POST") {
+      const body = submitMessageRequestSchema.parse(await request.json());
+      const admission = await admitOwnedMessage({
+        ownerId: identity.userId,
+        chatId,
+        idempotencyKey: body.idempotencyKey,
+        text: body.text,
+        trace,
+      });
+      const response = Response.json(apiSuccessSchema(messageAdmissionResponseSchema).parse({
+        data: {
+          chatId: admission.chatId,
+          messageId: admission.messageId,
+          runId: admission.runId,
+          status: admission.status,
+          trace: {
+            requestId: trace.requestId,
+            traceId: admission.traceId,
+            spanId: trace.spanId,
+          },
+        },
+      }), { status: admission.replay ? 200 : 201, headers });
+      return response;
+    }
     const query = cursorPaginationQuerySchema.parse(queryObject(request));
     const page = await listOwnedChatMessages(identity.userId, chatId, query);
     const response = Response.json(apiSuccessSchema(messageListResponseSchema).parse({
@@ -47,10 +72,23 @@ export async function messageController(request: Request, rawChatId: string): Pr
     }), { headers });
     return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
   } catch (error) {
-    if (error instanceof ZodError || error instanceof InvalidCursorError) return errorResponse("INVALID_REQUEST", 400, requestId, headers);
+    if (error instanceof ZodError || error instanceof InvalidCursorError || error instanceof SyntaxError) {
+      return errorResponse("INVALID_REQUEST", 400, requestId, headers);
+    }
     if (error instanceof ChatNotFoundError) return errorResponse("NOT_FOUND", 404, requestId, headers);
+    if (error instanceof RateLimitError) return errorResponse("RATE_LIMITED", 429, requestId, headers);
+    if (error instanceof ActiveRunError) return errorResponse("ACTIVE_RUN", 409, requestId, headers);
+    if (error instanceof IdempotencyConflictError) return errorResponse("IDEMPOTENCY_CONFLICT", 409, requestId, headers);
+    if (error instanceof InsufficientCreditError) return errorResponse("INSUFFICIENT_CREDITS", 402, requestId, headers);
+    if (error instanceof DispatchNotConfiguredError || isDatabaseConfigurationError(error)) {
+      return errorResponse("CONFIGURATION_ERROR", 503, requestId, headers);
+    }
     return mapErrorToResponse(error, trace, headers);
   }
+}
+
+function isDatabaseConfigurationError(error: unknown): boolean {
+  return error instanceof Error && error.message === "Database configuration is unavailable.";
 }
 
 function queryObject(request: Request): Record<string, string> {

@@ -6,6 +6,7 @@ import {
   releaseChatActiveRun,
 } from "@/modules/chats/chat.service";
 import {
+  countOwnedRunsSince,
   createAgentRun,
   findAgentRun,
   findAgentRunByIdempotencyKey,
@@ -69,6 +70,33 @@ export function finishAgentRun(input: FinishAgentRunInput) {
 
 export function getAgentRunInTransaction(transaction: DatabaseTransaction, id: string) {
   return findAgentRun(transaction, id);
+}
+
+export function findAgentRunByIdempotencyInTransaction(
+  transaction: DatabaseTransaction,
+  chatId: string,
+  idempotencyKey: string,
+) {
+  return findAgentRunByIdempotencyKey(transaction, chatId, idempotencyKey);
+}
+
+export function countRecentOwnedRunsInTransaction(
+  transaction: DatabaseTransaction,
+  ownerId: string,
+  since: Date,
+) {
+  return countOwnedRunsSince(transaction, ownerId, since);
+}
+
+export function createPendingRunInTransaction(
+  transaction: DatabaseTransaction,
+  input: { chatId: string; idempotencyKey: string; traceId: string },
+) {
+  return createAgentRun(transaction, input);
+}
+
+export function markRunFailedInTransaction(transaction: DatabaseTransaction, runId: string) {
+  return updateAgentRunStatus(transaction, runId, "failed", { finishedAt: new Date() });
 }
 
 export function getOwnedAgentRunInTransaction(

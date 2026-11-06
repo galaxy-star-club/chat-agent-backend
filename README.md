@@ -1,6 +1,6 @@
 # Agentic Chat backend
 
-Independent Next.js REST backend. It provides Clerk session-token authentication, PostgreSQL/Prisma domain persistence, and backend-owned shared contracts. No conversation endpoints, uploads, agent execution, or external providers are implemented.
+Independent Next.js REST backend. It provides Clerk session-token authentication, PostgreSQL/Prisma domain persistence, owned chat and message admission, and backend-owned shared contracts. Message admission can dispatch a Trigger.dev task when `TRIGGER_SECRET_KEY` is set. No model execution, uploads, or deployment are implemented.
 
 ## Local setup
 
