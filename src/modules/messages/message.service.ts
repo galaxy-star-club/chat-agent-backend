@@ -3,7 +3,9 @@ import type { MessageStatus } from "@/contracts/run";
 import { withTransaction, type DatabaseTransaction } from "@/lib/database.server";
 import { getAgentRunInTransaction } from "@/modules/agent-runs/agent-run.service";
 import { getOwnedChatInTransaction } from "@/modules/chats/chat.service";
-import { createMessage, findMessage } from "./message.repository";
+import { ChatNotFoundError } from "@/modules/chats/chat.service";
+import { decodeKeysetCursor, encodeKeysetCursor } from "@/lib/keyset-cursor";
+import { createMessage, findMessage, findMessagesForChat } from "./message.repository";
 
 export interface MessageService {
   create(input: CreateOwnedMessageInput): ReturnType<typeof createOwnedMessage>;
@@ -40,4 +42,27 @@ export function createOwnedMessage(input: CreateOwnedMessageInput) {
 
 export function getMessageInTransaction(transaction: DatabaseTransaction, id: string) {
   return findMessage(transaction, id);
+}
+
+export async function listOwnedChatMessages(
+  ownerId: string,
+  chatId: string,
+  input: { cursor?: string; limit: number },
+) {
+  const cursor = decodeKeysetCursor(input.cursor);
+  const messages = await withTransaction(async (transaction) => {
+    const chat = await getOwnedChatInTransaction(transaction, ownerId, chatId);
+    if (!chat) throw new ChatNotFoundError();
+    return findMessagesForChat(transaction, chatId, cursor, input.limit);
+  });
+  const hasMore = messages.length > input.limit;
+  const descendingItems = hasMore ? messages.slice(0, input.limit) : messages;
+  const last = descendingItems.at(-1);
+  return {
+    items: [...descendingItems].reverse(),
+    pageInfo: {
+      hasMore,
+      nextCursor: hasMore && last ? encodeKeysetCursor(last) : null,
+    },
+  };
 }

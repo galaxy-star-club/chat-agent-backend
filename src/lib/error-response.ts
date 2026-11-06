@@ -8,6 +8,8 @@ const messages: Record<ApiErrorCode, string> = {
   DATABASE_UNAVAILABLE: "Database is unavailable.",
   ORIGIN_NOT_ALLOWED: "Origin is not allowed.",
   METHOD_NOT_ALLOWED: "Method is not allowed.",
+  INVALID_REQUEST: "Request is invalid.",
+  NOT_FOUND: "Resource was not found.",
   INTERNAL_ERROR: "An internal error occurred.",
 };
 

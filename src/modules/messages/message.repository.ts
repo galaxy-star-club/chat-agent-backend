@@ -19,3 +19,26 @@ export function createMessage(transaction: Prisma.TransactionClient, input: Crea
 export function findMessage(transaction: Prisma.TransactionClient, id: string) {
   return transaction.message.findUnique({ where: { id } });
 }
+
+export function findMessagesForChat(
+  transaction: Prisma.TransactionClient,
+  chatId: string,
+  cursor: { createdAt: Date; id: string } | undefined,
+  limit: number,
+) {
+  return transaction.message.findMany({
+    where: {
+      chatId,
+      ...(cursor
+        ? {
+          OR: [
+            { createdAt: { lt: cursor.createdAt } },
+            { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+          ],
+        }
+        : {}),
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+  });
+}

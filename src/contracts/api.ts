@@ -9,6 +9,8 @@ export const apiErrorCodeSchema = z.enum([
   "DATABASE_UNAVAILABLE",
   "INTERNAL_ERROR",
   "METHOD_NOT_ALLOWED",
+  "INVALID_REQUEST",
+  "NOT_FOUND",
 ]);
 
 export const apiErrorSchema = z.strictObject({
