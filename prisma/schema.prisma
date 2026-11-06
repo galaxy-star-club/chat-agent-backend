@@ -126,7 +126,7 @@ model Attachment {
   chat       Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
   message    Message?         @relation(fields: [messageId], references: [id], onDelete: SetNull)
 
-  @@unique([chatId, position])
+  @@unique([messageId, position])
   @@index([chatId, createdAt, id])
   @@index([ownerId, createdAt, id])
 }

@@ -1,7 +1,6 @@
 import type { ContentBlock } from "@/contracts/content";
 import type { MessageStatus } from "@/contracts/run";
-import type { Prisma } from "@/generated/prisma/client";
-import { withTransaction } from "@/lib/database.server";
+import { withTransaction, type DatabaseTransaction } from "@/lib/database.server";
 import { getAgentRunInTransaction } from "@/modules/agent-runs/agent-run.service";
 import { getOwnedChatInTransaction } from "@/modules/chats/chat.service";
 import { createMessage, findMessage } from "./message.repository";
@@ -39,6 +38,6 @@ export function createOwnedMessage(input: CreateOwnedMessageInput) {
   });
 }
 
-export function getMessageInTransaction(transaction: Prisma.TransactionClient, id: string) {
+export function getMessageInTransaction(transaction: DatabaseTransaction, id: string) {
   return findMessage(transaction, id);
 }

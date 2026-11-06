@@ -1,5 +1,4 @@
-import { withTransaction } from "@/lib/database.server";
-import type { Prisma } from "@/generated/prisma/client";
+import { withTransaction, type DatabaseTransaction } from "@/lib/database.server";
 import {
   claimActiveRun,
   createChat,
@@ -21,7 +20,7 @@ export function getOwnedChat(ownerId: string, chatId: string) {
 }
 
 export function getOwnedChatInTransaction(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransaction,
   ownerId: string,
   chatId: string,
 ) {
@@ -29,7 +28,7 @@ export function getOwnedChatInTransaction(
 }
 
 export function claimChatActiveRun(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransaction,
   chatId: string,
   runId: string,
 ) {
@@ -37,7 +36,7 @@ export function claimChatActiveRun(
 }
 
 export function releaseChatActiveRun(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransaction,
   chatId: string,
   runId: string,
 ) {

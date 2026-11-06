@@ -4,6 +4,8 @@ import { getDatabaseUrl } from "./config";
 
 let client: PrismaClient | undefined;
 
+export type DatabaseTransaction = Prisma.TransactionClient;
+
 export function getPrisma(): PrismaClient | null {
   const databaseUrl = getDatabaseUrl();
   if (!databaseUrl) return null;
@@ -12,7 +14,7 @@ export function getPrisma(): PrismaClient | null {
   return client;
 }
 
-export async function withTransaction<T>(work: (transaction: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+export async function withTransaction<T>(work: (transaction: DatabaseTransaction) => Promise<T>): Promise<T> {
   const prisma = getPrisma();
   if (!prisma) throw new Error("Database configuration is unavailable.");
   return prisma.$transaction(work);

@@ -34,7 +34,7 @@ export function applyCreditChange(input: ApplyCreditChangeInput) {
       input.deltaBalance,
       input.deltaReserved,
     );
-    if (updated.balance < 0n || updated.reserved < 0n || updated.reserved > updated.balance) {
+    if (updated.balance < BigInt(0) || updated.reserved < BigInt(0) || updated.reserved > updated.balance) {
       throw new Error("Credit balance invariant violated.");
     }
 

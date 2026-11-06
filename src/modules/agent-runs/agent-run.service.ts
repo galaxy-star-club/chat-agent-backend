@@ -1,6 +1,5 @@
 import type { RunStatus } from "@/contracts/run";
-import type { Prisma } from "@/generated/prisma/client";
-import { withTransaction } from "@/lib/database.server";
+import { withTransaction, type DatabaseTransaction } from "@/lib/database.server";
 import {
   claimChatActiveRun,
   getOwnedChatInTransaction,
@@ -68,12 +67,12 @@ export function finishAgentRun(input: FinishAgentRunInput) {
   });
 }
 
-export function getAgentRunInTransaction(transaction: Prisma.TransactionClient, id: string) {
+export function getAgentRunInTransaction(transaction: DatabaseTransaction, id: string) {
   return findAgentRun(transaction, id);
 }
 
 export function getOwnedAgentRunInTransaction(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransaction,
   ownerId: string,
   id: string,
 ) {
