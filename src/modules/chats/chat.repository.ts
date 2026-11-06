@@ -1,4 +1,4 @@
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 export type ChatCursor = { createdAt: Date; id: string };
 export type FindOwnedChatsInput = {
@@ -27,13 +27,12 @@ export function findOwnedChats(transaction: Prisma.TransactionClient, input: Fin
     ...(input.query
       ? [{
         OR: [
-          { title: { contains: input.query, mode: "insensitive" } },
+          { title: { contains: input.query, mode: Prisma.QueryMode.insensitive } },
           {
             messages: {
               some: {
                 content: {
                   string_contains: input.query,
-                  mode: "insensitive",
                 },
               },
             },
