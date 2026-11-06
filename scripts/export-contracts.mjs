@@ -6,7 +6,18 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const target = resolve(process.argv[2] ?? resolve(root, "dist/contracts"));
-const contractFiles = ["auth.ts", "database-readiness.ts", "health.ts"];
+const contractFiles = [
+  "api.ts",
+  "auth.ts",
+  "content.ts",
+  "database-readiness.ts",
+  "health.ts",
+  "json.ts",
+  "pagination.ts",
+  "run.ts",
+  "tools.ts",
+  "trace.ts",
+];
 const sources = Object.fromEntries(await Promise.all(contractFiles.map(async (file) => [
   file,
   await readFile(resolve(root, "src/contracts", file), "utf8"),
