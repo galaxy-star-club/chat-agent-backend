@@ -31,3 +31,18 @@ export function getClerkConfig(env = process.env): {
   if (!publishableKey || !secretKey) return null;
   return { publishableKey, secretKey };
 }
+
+export function getDatabaseUrl(env = process.env): string | null {
+  const value = env.DATABASE_URL?.trim();
+  if (!value) return null;
+
+  try {
+    const url = new URL(value);
+    if (!["postgres:", "postgresql:"].includes(url.protocol) || !url.hostname || url.pathname === "/") {
+      return null;
+    }
+    return value;
+  } catch {
+    return null;
+  }
+}

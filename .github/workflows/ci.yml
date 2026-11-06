@@ -21,6 +21,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prisma generate
       - run: pnpm check
       - run: pnpm build
       - run: pnpm contracts:export

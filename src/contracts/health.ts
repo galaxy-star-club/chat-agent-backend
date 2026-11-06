@@ -14,6 +14,7 @@ export const apiErrorSchema = z.strictObject({
       "AUTHENTICATION_REQUIRED",
       "ORIGIN_NOT_ALLOWED",
       "CONFIGURATION_ERROR",
+      "DATABASE_UNAVAILABLE",
       "INTERNAL_ERROR",
       "METHOD_NOT_ALLOWED",
     ]),

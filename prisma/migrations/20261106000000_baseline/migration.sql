@@ -1,0 +1,1 @@
+-- Empty database baseline. Product tables are introduced by later approved plans.
