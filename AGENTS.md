@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Agentic Chat backend
 
-- Current authorization: Plan 05 domain schema and repository boundaries are complete. No conversation endpoints, agent runtime, uploads, provider calls, publication or deployment yet. Do not start Plan 06 without permission.
+- Current authorization: Plan 06 conversation management is complete. Do not start Plan 07 without permission.
 - Next.js Route Handlers are mandatory. No NestJS or additional HTTP framework.
 - HTTP route -> controller -> service -> table-specific repository when persistence exists. A health endpoint needs no fake repository or database.
 - Route handlers contain delegation only. Controllers adapt HTTP and validate boundaries. Services own use-case logic and remain independent of Next HTTP types.
