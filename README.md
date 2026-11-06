@@ -1,6 +1,6 @@
 # Agentic Chat backend
 
-Independent Next.js REST backend. It provides local foundations, Clerk session-token authentication, and a Prisma/PostgreSQL database foundation. No product domain tables, uploads, agent execution, or other external providers are implemented.
+Independent Next.js REST backend. It provides local foundations, Clerk session-token authentication, a Prisma/PostgreSQL database foundation, and backend-owned shared contracts. No product domain tables, uploads, agent execution, or other external providers are implemented.
 
 ## Local setup
 
@@ -14,6 +14,12 @@ pnpm dev
 ```
 
 The backend listens on `http://localhost:3001`. The separate frontend uses port 3000. Run `pnpm check` for lint, strict typechecking and tests; `pnpm build` checks the production build. CI generates Prisma Client, runs both checks, and exports browser-safe contracts with `pnpm contracts:export` into an artifact. The backend owns the files in `src/contracts`; consumers use versioned snapshots rather than importing backend code.
+
+## Shared contracts and request infrastructure
+
+`src/contracts` contains strict Zod contracts for safe API errors and success envelopes, JSON values, ordered content blocks, run/message status, tool calls/results, trace metadata, and bounded opaque-cursor pagination. These are provider-neutral foundations only; concrete domain records, tool registry entries, provider schemas, and credit policy belong to later plans.
+
+Configuration parsing is centralized in `src/lib/config.ts`. Controllers create validated request/trace identifiers and map unexpected failures through one safe error path. Structured error logs retain those identifiers while recursively redacting secret-bearing keys and error messages. The contract exporter uses an explicit browser-safe allowlist, refuses uncommitted contract sources, and records the backend revision plus a SHA-256 hash for every snapshot.
 
 ## Health and CORS
 
