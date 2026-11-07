@@ -19,6 +19,7 @@ The API runs at `http://localhost:3001`. Set the required values in `.env`:
 - Clerk keys
 - Neon `DATABASE_URL`
 - `OPENROUTER_API_KEY` (only `openrouter/free` is accepted)
+- `TRIGGER_SECRET_KEY` for `pnpm dev:trigger`
 
 Useful commands:
 
@@ -56,3 +57,5 @@ Frontend ← refreshed persisted messages ← assistant drafts
 - `AGENT_MAX_TURNS` accepts `1`–`8`; the default is `8`.
 
 Use pooled `DATABASE_URL` at runtime. `DIRECT_URL` is only for migrations and must not be placed in the Vercel runtime environment.
+
+`trigger dev` runs a local worker in Trigger.dev's Development environment. Production requires a separately deployed Trigger worker and its own Trigger.dev environment variables; a Vercel deployment does not deploy that worker.
