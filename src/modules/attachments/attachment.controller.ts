@@ -19,7 +19,13 @@ export async function attachmentController(request: Request, rawChatId: string, 
     const origin = request.headers.get("origin");
     if (origin !== null && !origins.has(origin)) return errorResponse("ORIGIN_NOT_ALLOWED", 403, trace.requestId, headers);
     headers = responseHeaders(trace.requestId, origin ?? undefined, true);
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
+    if (request.method === "OPTIONS") {
+      headers.set("Allow", "POST, OPTIONS");
+      headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+      headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+      headers.set("Access-Control-Max-Age", "600");
+      return new Response(null, { status: 204, headers });
+    }
     if (request.method !== "POST") return errorResponse("METHOD_NOT_ALLOWED", 405, trace.requestId, headers);
     const identity = readRequestIdentity(request, clerk.secretKey);
     if (!identity) return errorResponse("AUTHENTICATION_REQUIRED", 401, trace.requestId, headers);
