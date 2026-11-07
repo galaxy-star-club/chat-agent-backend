@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonValueSchema, type JsonValue } from "@/contracts/json";
+import { MagicaFailure, magicaConfigured, runMagicaVideoTool } from "./magica.provider";
 import { listSkillCatalog, loadSkill, readSkillAsset, SkillFailure, type SkillSummary } from "./skills";
 
 const skillName = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(64);
@@ -19,6 +20,13 @@ const assetOutput = z.strictObject({
   mediaType: z.enum(["text/markdown", "text/plain"]),
   text: z.string().min(1).max(32_000),
 });
+const videoUrl = z.url().refine((value) => value.startsWith("https://"));
+const removeVideoBackgroundInput = z.strictObject({ video_url: videoUrl });
+const upscaleVideoInput = z.strictObject({
+  video_url: videoUrl,
+  resolution: z.enum(["1080p", "2160p"]).optional(),
+});
+const videoOutput = z.strictObject({ runId: z.string().min(1), video_url: videoUrl });
 
 export type ToolContext = {
   loadedSkills: Array<{ name: string; contentHash: string; instructions: string }>;
@@ -37,6 +45,7 @@ type RegisteredTool = {
   description: string;
   rendering: { label: string };
   idempotent: boolean;
+  available: () => boolean;
   parameters: JsonValue;
   eligible: (input: unknown, context: ToolContext) => boolean;
   estimateCredits: (input: unknown) => bigint;
@@ -57,6 +66,11 @@ const toolMessages = {
   tool_failed: "The tool failed.",
   tool_limit: "The model asked for more tools than this run can run.",
   credit_policy_missing: "That tool does not have an approved credit policy.",
+  tool_not_configured: "That media tool is not configured yet.",
+  provider_unauthorized: "The media provider rejected the server credentials.",
+  provider_rate_limited: "The media provider is busy. Try again later.",
+  provider_timeout: "The media provider took too long. Try again later.",
+  provider_failed: "The media provider could not finish this request.",
 } as const;
 
 export type ToolFailureCode = keyof typeof toolMessages;
@@ -71,6 +85,7 @@ function defineTool<Input, Output extends JsonValue>(definition: {
   rendering: { label: string };
   input: z.ZodType<Input>;
   output: z.ZodType<Output>;
+  available?: () => boolean;
   eligible: (input: Input, context: ToolContext) => boolean;
   execute: (input: Input, context: ToolContext) => Promise<Output>;
   effect: (output: Output) => SkillEffect | null;
@@ -83,6 +98,7 @@ function defineTool<Input, Output extends JsonValue>(definition: {
     description: definition.description,
     rendering: definition.rendering,
     idempotent: true,
+    available: definition.available ?? (() => true),
     parameters: jsonValueSchema.parse(parameters),
     eligible: (input, context) => {
       const parsed = definition.input.safeParse(input);
@@ -95,8 +111,8 @@ function defineTool<Input, Output extends JsonValue>(definition: {
       try {
         return definition.output.parse(await definition.execute(parsed.data, context));
       } catch (error) {
-        if (error instanceof SkillFailure || error instanceof ToolInputError) throw error;
-        throw new SkillFailure("malformed_skill");
+        if (error instanceof SkillFailure || error instanceof ToolInputError || error instanceof MagicaFailure) throw error;
+        throw new Error("tool_failed");
       }
     },
     effect: (output) => {
@@ -145,6 +161,34 @@ const tools: readonly RegisteredTool[] = [
     }),
     effect: () => null,
   }),
+  defineTool({
+    name: "remove_video_background",
+    description: "Remove the background from one HTTPS video URL when the user asks for a transparent-background video.",
+    rendering: { label: "Remove video background" },
+    input: removeVideoBackgroundInput,
+    output: videoOutput,
+    available: magicaConfigured,
+    eligible: () => true,
+    execute: async (input) => {
+      const result = await runMagicaVideoTool({ node: "videoBackgroundRemoverNode", payload: input });
+      return { runId: result.runId, video_url: result.videoUrl };
+    },
+    effect: () => null,
+  }),
+  defineTool({
+    name: "upscale_video",
+    description: "Upscale one HTTPS video URL when the user explicitly asks for higher resolution.",
+    rendering: { label: "Upscale video" },
+    input: upscaleVideoInput,
+    output: videoOutput,
+    available: magicaConfigured,
+    eligible: () => true,
+    execute: async (input) => {
+      const result = await runMagicaVideoTool({ node: "videoUpscalerNode", payload: input });
+      return { runId: result.runId, video_url: result.videoUrl };
+    },
+    effect: () => null,
+  }),
 ];
 
 export function toolByName(name: string): RegisteredTool | undefined {
@@ -152,7 +196,7 @@ export function toolByName(name: string): RegisteredTool | undefined {
 }
 
 export function providerTools(): Array<{ type: "function"; function: { name: string; description: string; parameters: JsonValue } }> {
-  return tools.map((tool) => ({
+  return tools.filter((tool) => tool.available()).map((tool) => ({
     type: "function" as const,
     function: { name: tool.name, description: tool.description, parameters: tool.parameters },
   }));
@@ -161,6 +205,7 @@ export function providerTools(): Array<{ type: "function"; function: { name: str
 export function failureFromTool(error: unknown): { code: ToolFailureCode; message: string } {
   if (error instanceof ToolInputError) return toolFailure("invalid_tool_input");
   if (error instanceof SkillFailure) return toolFailure(error.code);
+  if (error instanceof MagicaFailure) return toolFailure(error.code);
   return toolFailure("tool_failed");
 }
 

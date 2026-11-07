@@ -1,5 +1,7 @@
 import { messageController } from "@/modules/messages/message.controller";
 
+export const maxDuration = 60;
+
 type Context = { params: Promise<{ chatId: string }> };
 async function handle(request: Request, context: Context): Promise<Response> {
   return messageController(request, (await context.params).chatId);

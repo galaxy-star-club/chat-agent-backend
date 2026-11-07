@@ -27,3 +27,30 @@ export function findOwnedAttachment(
 ) {
   return transaction.attachment.findFirst({ where: { id, ownerId } });
 }
+
+export function findOwnedAttachments(transaction: Prisma.TransactionClient, ids: string[], ownerId: string, chatId: string) {
+  return transaction.attachment.findMany({ where: { id: { in: ids }, ownerId, chatId }, orderBy: { createdAt: "asc" } });
+}
+
+export function completeAttachment(
+  transaction: Prisma.TransactionClient,
+  id: string,
+  input: { assemblyId: string; url: string; byteSize: bigint; mediaType: string },
+) {
+  return transaction.attachment.update({ where: { id }, data: { ...input, status: "ready" } });
+}
+
+export function failAttachments(transaction: Prisma.TransactionClient, ids: string[]) {
+  return transaction.attachment.updateMany({ where: { id: { in: ids }, status: "pending" }, data: { status: "failed" } });
+}
+
+export function findReadyUnattachedByUrls(transaction: Prisma.TransactionClient, ownerId: string, chatId: string, urls: string[]) {
+  return transaction.attachment.findMany({
+    where: { ownerId, chatId, messageId: null, status: "ready", url: { in: urls } },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+}
+
+export function attachToMessage(transaction: Prisma.TransactionClient, id: string, messageId: string, position: number) {
+  return transaction.attachment.updateMany({ where: { id, messageId: null, status: "ready" }, data: { messageId, position } });
+}

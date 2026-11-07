@@ -67,6 +67,10 @@ export const freeModelId = "openrouter/free";
 
 const freeModelSchema = z.literal(freeModelId);
 const maxModelTurnsSchema = z.coerce.number().int().min(1).max(8);
+const providerUrlSchema = z.url().refine((value) => {
+  const url = new URL(value);
+  return url.protocol === "https:" && !url.username && !url.password;
+});
 
 /**
  * Conservative loop bound used when AGENT_MAX_TURNS is unset.
@@ -88,4 +92,39 @@ export function getOpenRouterConfig(env = process.env): { apiKey: string; model:
   const model = freeModelSchema.safeParse(configured);
   if (!model.success) return null;
   return { apiKey, model: model.data };
+}
+
+export function getMagicaConfig(env = process.env): {
+  apiKey: string;
+  baseUrl: string;
+  videoBackgroundRemoverNode: string;
+  videoUpscalerNode: string;
+} | null {
+  const result = z.strictObject({
+    apiKey: z.string().trim().min(1),
+    baseUrl: providerUrlSchema,
+    videoBackgroundRemoverNode: z.string().trim().min(1).max(100),
+    videoUpscalerNode: z.string().trim().min(1).max(100),
+  }).safeParse({
+    apiKey: env.MAGICA_API_KEY,
+    baseUrl: env.MAGICA_BASE_URL,
+    videoBackgroundRemoverNode: env.MAGICA_VIDEO_BACKGROUND_REMOVER_NODE,
+    videoUpscalerNode: env.MAGICA_VIDEO_UPSCALER_NODE,
+  });
+  return result.success ? result.data : null;
+}
+
+export function getTransloaditConfig(env = process.env): { key: string; secret: string; templateId: string; signatureAlgorithm: "sha256" | "sha384" } | null {
+  const result = z.strictObject({
+    key: z.string().trim().min(1),
+    secret: z.string().trim().min(1),
+    templateId: z.string().trim().min(1).max(100),
+    signatureAlgorithm: z.enum(["sha256", "sha384"]),
+  }).safeParse({
+    key: env.TRANSLOADIT_KEY,
+    secret: env.TRANSLOADIT_SECRET,
+    templateId: env.TRANSLOADIT_TEMPLATE_ID,
+    signatureAlgorithm: env.TRANSLOADIT_SIGNATURE_ALGORITHM?.trim() || "sha384",
+  });
+  return result.success ? result.data : null;
 }

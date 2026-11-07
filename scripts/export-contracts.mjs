@@ -8,6 +8,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const target = resolve(process.argv[2] ?? resolve(root, "dist/contracts"));
 const contractFiles = [
   "api.ts",
+  "attachments.ts",
   "auth.ts",
   "chats.ts",
   "content.ts",

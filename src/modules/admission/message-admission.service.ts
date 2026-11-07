@@ -1,7 +1,9 @@
+import { runs } from "@trigger.dev/sdk";
 import { contentBlocksSchema } from "@/contracts/content";
 import { runStatusSchema, type RunStatus } from "@/contracts/run";
 import type { TraceContext } from "@/contracts/trace";
 import { withTransaction, type DatabaseTransaction } from "@/lib/database.server";
+import { logRun } from "@/lib/logger";
 import {
   countRecentOwnedRunsInTransaction,
   createPendingRunInTransaction,
@@ -10,6 +12,7 @@ import {
   markRunFailedInTransaction,
 } from "@/modules/agent-runs/agent-run.service";
 import { dispatchAdmittedRun, triggerDispatchConfigured, DispatchNotConfiguredError } from "@/modules/agent-runs/trigger-dispatch";
+import { attachUploadedMediaInTransaction } from "@/modules/attachments/attachment.service";
 import { ChatNotFoundError, claimChatActiveRun, getOwnedChatInTransaction, releaseChatActiveRun } from "@/modules/chats/chat.service";
 import {
   applyCreditChangeInTransaction,
@@ -69,7 +72,9 @@ type AdmitInput = {
   trace: TraceContext;
 };
 
-export async function admitOwnedMessage(input: AdmitInput): Promise<MessageAdmission> {
+export type OwnedMessageAdmission = MessageAdmission & { executeInline: boolean };
+
+export async function admitOwnedMessage(input: AdmitInput): Promise<OwnedMessageAdmission> {
   if (!triggerDispatchConfigured()) throw new DispatchNotConfiguredError();
   let admission: MessageAdmission;
   try {
@@ -78,17 +83,28 @@ export async function admitOwnedMessage(input: AdmitInput): Promise<MessageAdmis
     if (!isUniqueViolation(error)) throw error;
     admission = await withTransaction((transaction) => replayAdmission(transaction, input));
   }
-  if (admission.status !== "pending") return admission;
+  if (admission.status !== "pending") return { ...admission, executeInline: false };
   try {
-    await dispatchAdmittedRun({ runId: admission.runId });
-    return admission;
+    const triggerRunId = await dispatchAdmittedRun({ runId: admission.runId });
+    return { ...admission, executeInline: await runHasNoWorker(triggerRunId, admission.traceId) };
   } catch {
-    return failAdmittedRun({
+    return { ...await failAdmittedRun({
       ownerId: input.ownerId,
       chatId: admission.chatId,
       messageId: admission.messageId,
       runId: admission.runId,
-    });
+    }), executeInline: false };
+  }
+}
+
+// A production Trigger run with no deployed worker stays PENDING_VERSION and never starts.
+async function runHasNoWorker(triggerRunId: string, traceId: string): Promise<boolean> {
+  try {
+    const hosted = await runs.retrieve(triggerRunId);
+    return hosted.status === "PENDING_VERSION";
+  } catch (error) {
+    logRun("error", "agent_run_inline_skipped", traceId, { name: error instanceof Error ? error.name : "Error" });
+    return false;
   }
 }
 
@@ -126,6 +142,7 @@ async function admitInTransaction(transaction: DatabaseTransaction, input: Admit
     role: "user",
     content: [{ type: "text", text: input.text }],
   });
+  await attachUploadedMediaInTransaction(transaction, { ownerId: input.ownerId, chatId: input.chatId, messageId: message.id, text: input.text });
   const claimed = await claimChatActiveRun(transaction, input.chatId, run.id);
   if (claimed.count !== 1) throw new ActiveRunError();
   await applyCreditChangeInTransaction(transaction, {

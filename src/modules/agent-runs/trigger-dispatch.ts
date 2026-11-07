@@ -18,8 +18,9 @@ export function triggerDispatchConfigured(env: NodeJS.ProcessEnv = process.env):
   return Boolean(env.TRIGGER_SECRET_KEY?.trim());
 }
 
-export async function dispatchAdmittedRun(input: z.input<typeof agentRunPayloadSchema>): Promise<void> {
+export async function dispatchAdmittedRun(input: z.input<typeof agentRunPayloadSchema>): Promise<string> {
   if (!triggerDispatchConfigured()) throw new DispatchNotConfiguredError();
   const payload = agentRunPayloadSchema.parse(input);
-  await tasks.trigger(agentRunTaskId, payload, { idempotencyKey: payload.runId });
+  const handle = await tasks.trigger(agentRunTaskId, payload, { idempotencyKey: payload.runId });
+  return handle.id;
 }

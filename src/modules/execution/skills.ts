@@ -25,7 +25,7 @@ export function agentSkillsRoot(): string {
 export async function listSkillCatalog(root = agentSkillsRoot()): Promise<SkillSummary[]> {
   const resolvedRoot = await resolveRoot(root);
   if (!resolvedRoot) return [];
-  const entries = await readdir(resolvedRoot, { withFileTypes: true });
+  const entries = await readdir(/* turbopackIgnore: true */ resolvedRoot, { withFileTypes: true });
   const catalog: SkillSummary[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory() || !namePattern.test(entry.name)) continue;
@@ -65,7 +65,7 @@ export async function readSkillAsset(input: {
   if (!candidate.startsWith(directory + path.sep)) throw new SkillFailure("unsupported_skill");
   let realFile: string;
   try {
-    realFile = await realpath(candidate);
+    realFile = await realpath(/* turbopackIgnore: true */ candidate);
   } catch {
     throw new SkillFailure("unknown_skill");
   }
