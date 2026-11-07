@@ -1,5 +1,7 @@
 import { agentRunController } from "@/modules/agent-runs/agent-run.controller";
 
+export const maxDuration = 60;
+
 type Context = { params: Promise<{ chatId: string; runId: string }> };
 
 async function handle(request: Request, context: Context): Promise<Response> {

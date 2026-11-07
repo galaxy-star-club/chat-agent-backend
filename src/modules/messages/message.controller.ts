@@ -1,4 +1,3 @@
-import { after } from "next/server";
 import { ZodError } from "zod";
 import { apiSuccessSchema } from "@/contracts/api";
 import { chatIdSchema } from "@/contracts/chats";
@@ -9,7 +8,6 @@ import { getClerkConfig, getFrontendOrigins } from "@/lib/config";
 import { responseHeaders } from "@/lib/cors";
 import { errorResponse, mapErrorToResponse } from "@/lib/error-response";
 import { InvalidCursorError } from "@/lib/keyset-cursor";
-import { logRun } from "@/lib/logger";
 import { readRequestIdentity } from "@/lib/request-auth.server";
 import { createTraceContext } from "@/lib/trace-context";
 import { ChatNotFoundError } from "@/modules/chats/chat.service";
@@ -54,11 +52,7 @@ export async function messageController(request: Request, rawChatId: string): Pr
         text: body.text,
         trace,
       });
-      if (admission.executeInline) {
-        after(() => executeAdmittedRun(admission.runId).catch((error: unknown) => {
-          logRun("error", "agent_run_inline_failed", admission.traceId, { runId: admission.runId, name: error instanceof Error ? error.name : "Error" });
-        }));
-      }
+      if (admission.executeInline) await executeAdmittedRun(admission.runId);
       const response = Response.json(apiSuccessSchema(messageAdmissionResponseSchema).parse({
         data: {
           chatId: admission.chatId,
