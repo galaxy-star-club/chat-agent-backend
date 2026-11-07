@@ -97,21 +97,23 @@ export function getOpenRouterConfig(env = process.env): { apiKey: string; model:
 export function getMagicaConfig(env = process.env): {
   apiKey: string;
   baseUrl: string;
-  videoBackgroundRemoverNode: string;
-  videoUpscalerNode: string;
+  videoBackgroundRemoverNode: string | null;
+  videoUpscalerNode: string | null;
 } | null {
-  const result = z.strictObject({
+  const core = z.strictObject({
     apiKey: z.string().trim().min(1),
     baseUrl: providerUrlSchema,
-    videoBackgroundRemoverNode: z.string().trim().min(1).max(100),
-    videoUpscalerNode: z.string().trim().min(1).max(100),
   }).safeParse({
     apiKey: env.MAGICA_API_KEY,
     baseUrl: env.MAGICA_BASE_URL,
-    videoBackgroundRemoverNode: env.MAGICA_VIDEO_BACKGROUND_REMOVER_NODE,
-    videoUpscalerNode: env.MAGICA_VIDEO_UPSCALER_NODE,
   });
-  return result.success ? result.data : null;
+  if (!core.success) return null;
+  const node = z.string().trim().min(1).max(100);
+  return {
+    ...core.data,
+    videoBackgroundRemoverNode: node.safeParse(env.MAGICA_VIDEO_BACKGROUND_REMOVER_NODE).data ?? null,
+    videoUpscalerNode: node.safeParse(env.MAGICA_VIDEO_UPSCALER_NODE).data ?? null,
+  };
 }
 
 export function getTransloaditConfig(env = process.env): { key: string; secret: string; templateId: string; signatureAlgorithm: "sha256" | "sha384" } | null {

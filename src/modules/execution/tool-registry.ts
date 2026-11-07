@@ -1,6 +1,16 @@
 import { z } from "zod";
 import { jsonValueSchema, type JsonValue } from "@/contracts/json";
-import { MagicaFailure, magicaConfigured, runMagicaVideoTool } from "./magica.provider";
+import {
+  MagicaFailure,
+  getMagicaModelPricing,
+  getMagicaModelSchema,
+  getMagicaRun,
+  listMagicaModels,
+  magicaConfigured,
+  magicaVideoConfigured,
+  runMagicaVideoTool,
+  startMagicaModel,
+} from "./magica.provider";
 import { listSkillCatalog, loadSkill, readSkillAsset, SkillFailure, type SkillSummary } from "./skills";
 
 const skillName = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(64);
@@ -27,6 +37,14 @@ const upscaleVideoInput = z.strictObject({
   resolution: z.enum(["1080p", "2160p"]).optional(),
 });
 const videoOutput = z.strictObject({ runId: z.string().min(1), video_url: videoUrl });
+const magicaIdentifier = z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9._-]+$/);
+const magicaModelInput = z.strictObject({ modelId: magicaIdentifier });
+const magicaRunInput = z.strictObject({
+  nodeType: magicaIdentifier,
+  subModelId: magicaIdentifier.optional(),
+  input: z.record(z.string().min(1).max(100), jsonValueSchema),
+});
+const magicaRunOutput = z.strictObject({ runId: z.string().min(1) });
 
 export type ToolContext = {
   loadedSkills: Array<{ name: string; contentHash: string; instructions: string }>;
@@ -162,12 +180,67 @@ const tools: readonly RegisteredTool[] = [
     effect: () => null,
   }),
   defineTool({
+    name: "list_magica_models",
+    description: "List the Magica model catalog before selecting a model for a requested generation task.",
+    rendering: { label: "List Magica models" },
+    input: z.strictObject({}),
+    output: jsonValueSchema,
+    available: magicaConfigured,
+    eligible: () => true,
+    execute: () => listMagicaModels(),
+    effect: () => null,
+  }),
+  defineTool({
+    name: "get_magica_model_schema",
+    description: "Get a Magica model's required input schema, defaults, and limits before executing it.",
+    rendering: { label: "Get Magica schema" },
+    input: magicaModelInput,
+    output: jsonValueSchema,
+    available: magicaConfigured,
+    eligible: () => true,
+    execute: ({ modelId }) => getMagicaModelSchema(modelId),
+    effect: () => null,
+  }),
+  defineTool({
+    name: "get_magica_model_pricing",
+    description: "Get current Magica pricing for one model before starting a generation.",
+    rendering: { label: "Get Magica pricing" },
+    input: magicaModelInput,
+    output: jsonValueSchema,
+    available: magicaConfigured,
+    eligible: () => true,
+    execute: ({ modelId }) => getMagicaModelPricing(modelId),
+    effect: () => null,
+  }),
+  defineTool({
+    name: "run_magica_model",
+    description: "Start one Magica model run after inspecting its schema and pricing. Returns a run ID for status checks.",
+    rendering: { label: "Run Magica model" },
+    input: magicaRunInput,
+    output: magicaRunOutput,
+    available: magicaConfigured,
+    eligible: () => true,
+    execute: ({ nodeType, subModelId, input }) => startMagicaModel({ nodeType, subModelId, input }),
+    effect: () => null,
+  }),
+  defineTool({
+    name: "get_magica_run",
+    description: "Get the status and output for a Magica model run.",
+    rendering: { label: "Get Magica run" },
+    input: z.strictObject({ runId: magicaIdentifier }),
+    output: jsonValueSchema,
+    available: magicaConfigured,
+    eligible: () => true,
+    execute: ({ runId }) => getMagicaRun(runId),
+    effect: () => null,
+  }),
+  defineTool({
     name: "remove_video_background",
     description: "Remove the background from one HTTPS video URL when the user asks for a transparent-background video.",
     rendering: { label: "Remove video background" },
     input: removeVideoBackgroundInput,
     output: videoOutput,
-    available: magicaConfigured,
+    available: () => magicaVideoConfigured("videoBackgroundRemoverNode"),
     eligible: () => true,
     execute: async (input) => {
       const result = await runMagicaVideoTool({ node: "videoBackgroundRemoverNode", payload: input });
@@ -181,7 +254,7 @@ const tools: readonly RegisteredTool[] = [
     rendering: { label: "Upscale video" },
     input: upscaleVideoInput,
     output: videoOutput,
-    available: magicaConfigured,
+    available: () => magicaVideoConfigured("videoUpscalerNode"),
     eligible: () => true,
     execute: async (input) => {
       const result = await runMagicaVideoTool({ node: "videoUpscalerNode", payload: input });
