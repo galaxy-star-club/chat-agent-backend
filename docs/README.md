@@ -1,7 +1,8 @@
 # API documentation
 
-This directory is a Mintlify documentation site. `openapi.yaml` describes the
-public REST API, and `mint.json` generates its interactive API reference.
+This directory holds Mintlify's content. `../docs.json` is the repository-root
+configuration Mintlify discovers during onboarding, and `openapi.yaml`
+describes the public REST API.
 
 ## Preview locally
 

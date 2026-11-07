@@ -15,11 +15,11 @@
     "anchors": [
       {
         "anchor": "Documentation",
-        "pages": ["introduction", "authentication", "errors"]
+        "pages": ["docs/introduction", "docs/authentication", "docs/errors"]
       },
       {
         "anchor": "API Reference",
-        "openapi": "openapi.yaml"
+        "openapi": "docs/openapi.yaml"
       }
     ]
   }
