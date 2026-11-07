@@ -68,6 +68,7 @@ export async function streamFreeModel(input: {
   messages: ProviderMessage[];
   tools: ProviderTool[];
   onDraft?: (draft: Draft) => Promise<void>;
+  onDelta?: (draft: Draft) => Promise<void>;
   /** Title calls use a short non-streaming completion. The chat reply stays streamed. */
   maxTokens?: number;
   disableReasoning?: boolean;
@@ -127,8 +128,10 @@ export async function streamFreeModel(input: {
         }
         const parsed = chunkSchema.safeParse(payload);
         if (!parsed.success) return result(state.text, state.reasoning, [], [], state.model, state.usage, "invalid_provider_output");
+        const sizeBefore = state.text.length + state.reasoning.length;
         const outcome = applyChunk(state, parsed.data);
         if (outcome) return result(state.text, state.reasoning, [], [], state.model, state.usage, outcome);
+        if (input.onDelta && state.text.length + state.reasoning.length > sizeBefore) await input.onDelta({ text: state.text, reasoning: state.reasoning });
         if (state.text.length >= plainTextMaxCharacters || state.reasoning.length >= plainTextMaxCharacters) {
           return result(state.text, state.reasoning, [], [], state.model, state.usage, "output_too_large");
         }
