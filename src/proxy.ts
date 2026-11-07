@@ -21,7 +21,7 @@ export async function proxy(request: Request): Promise<Response> {
 
     const origin = request.headers.get("origin");
     if (origin !== null && !origins.has(origin)) return proxyResponse(errorResponse("ORIGIN_NOT_ALLOWED", 403, requestId, headers));
-    headers = responseHeaders(requestId, origin ?? undefined);
+    headers = responseHeaders(requestId, origin ?? undefined, true);
 
     const session = await authenticateSession(request, clerkConfig, origins);
     if (session.kind === "handshake" && isDocumentNavigation(request)) {

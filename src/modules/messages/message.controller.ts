@@ -26,7 +26,7 @@ export async function messageController(request: Request, rawChatId: string): Pr
     if (!origins || !clerkConfig) return errorResponse("CONFIGURATION_ERROR", 503, requestId, headers);
     const origin = request.headers.get("origin");
     if (origin !== null && !origins.has(origin)) return errorResponse("ORIGIN_NOT_ALLOWED", 403, requestId, headers);
-    headers = responseHeaders(requestId, origin ?? undefined);
+    headers = responseHeaders(requestId, origin ?? undefined, true);
     if (request.method === "OPTIONS") {
       headers.set("Allow", allowedMethods.join(", "));
       headers.set("Access-Control-Allow-Methods", allowedMethods.join(", "));

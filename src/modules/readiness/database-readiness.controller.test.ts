@@ -52,6 +52,7 @@ describe("database readiness HTTP boundary", () => {
 
   it("keeps preflight and method handling independent of the database", async () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("FRONTEND_ORIGINS", undefined);
     const readiness = vi.spyOn(service, "getDatabaseReadiness");
     const preflight = await OPTIONS(request("OPTIONS", "http://localhost:3000"));
     expect(preflight.status).toBe(204);

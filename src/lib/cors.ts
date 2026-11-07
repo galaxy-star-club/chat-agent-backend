@@ -1,4 +1,4 @@
-export function responseHeaders(requestId: string, allowedOrigin?: string): Headers {
+export function responseHeaders(requestId: string, allowedOrigin?: string, allowCredentials = false): Headers {
   const headers = new Headers({
     "Cache-Control": "no-store",
     Vary: "Origin",
@@ -6,7 +6,7 @@ export function responseHeaders(requestId: string, allowedOrigin?: string): Head
   });
   if (allowedOrigin) {
     headers.set("Access-Control-Allow-Origin", allowedOrigin);
-    headers.set("Access-Control-Allow-Credentials", "true");
+    if (allowCredentials) headers.set("Access-Control-Allow-Credentials", "true");
     headers.set("Access-Control-Expose-Headers", "x-request-id");
   }
   return headers;

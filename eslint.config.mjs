@@ -14,7 +14,7 @@ const persistenceAndProviders = [
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
-  globalIgnores([".next/**", "dist/**", "next-env.d.ts"]),
+  globalIgnores([".next/**", "dist/**", "next-env.d.ts", ".trigger/**"]),
   {
     files: ["src/app/**/route.ts"],
     rules: {

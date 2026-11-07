@@ -21,10 +21,11 @@ function shape(value: unknown, depth = 0): unknown {
   return typeof value;
 }
 
+const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+
 describe("openrouter probe", () => {
-  it("prints a sanitized provider response", async () => {
-    const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-    if (!apiKey) throw new Error("missing key");
+  it.skipIf(!apiKey)("prints a sanitized provider response", async () => {
+    if (!apiKey) return;
     const tools = providerTools();
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",

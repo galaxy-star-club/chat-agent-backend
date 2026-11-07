@@ -28,7 +28,7 @@ async function handleAuth(request: Request): Promise<Response> {
     if (origin !== null && !origins.has(origin)) {
       return errorResponse("ORIGIN_NOT_ALLOWED", 403, requestId, headers);
     }
-    headers = responseHeaders(requestId, origin ?? undefined);
+    headers = responseHeaders(requestId, origin ?? undefined, true);
 
     if (request.method === "OPTIONS") {
       preflightHeaders(headers, "Authorization");

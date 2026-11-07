@@ -42,7 +42,7 @@ export async function chatController(request: Request, resource: Resource, rawCh
 
     const origin = request.headers.get("origin");
     if (origin !== null && !origins.has(origin)) return errorResponse("ORIGIN_NOT_ALLOWED", 403, requestId, headers);
-    headers = responseHeaders(requestId, origin ?? undefined);
+    headers = responseHeaders(requestId, origin ?? undefined, true);
 
     const allowed = methods[resource];
     if (request.method === "OPTIONS") {
