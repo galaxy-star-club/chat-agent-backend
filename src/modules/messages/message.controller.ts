@@ -12,7 +12,6 @@ import { readRequestIdentity } from "@/lib/request-auth.server";
 import { createTraceContext } from "@/lib/trace-context";
 import { ChatNotFoundError } from "@/modules/chats/chat.service";
 import { admitOwnedMessage, ActiveRunError, DispatchNotConfiguredError, IdempotencyConflictError, InsufficientCreditError, RateLimitError } from "@/modules/admission/message-admission.service";
-import { executeAdmittedRun } from "@/modules/execution/execute-run.service";
 import { listOwnedChatMessages } from "./message.service";
 
 const allowedMethods = ["GET", "HEAD", "OPTIONS", "POST"];
@@ -52,7 +51,6 @@ export async function messageController(request: Request, rawChatId: string): Pr
         text: body.text,
         trace,
       });
-      if (admission.executeInline) await executeAdmittedRun(admission.runId);
       const response = Response.json(apiSuccessSchema(messageAdmissionResponseSchema).parse({
         data: {
           chatId: admission.chatId,

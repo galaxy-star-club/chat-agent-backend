@@ -132,7 +132,7 @@ export async function streamFreeModel(input: {
         if (state.text.length >= plainTextMaxCharacters || state.reasoning.length >= plainTextMaxCharacters) {
           return result(state.text, state.reasoning, [], [], state.model, state.usage, "output_too_large");
         }
-        if (input.onDraft && state.text.length + state.reasoning.length - state.flushed >= 200) {
+        if (input.onDraft && state.text.length + state.reasoning.length - state.flushed >= 80) {
           state.flushed = state.text.length + state.reasoning.length;
           await input.onDraft({ text: state.text, reasoning: state.reasoning });
         }

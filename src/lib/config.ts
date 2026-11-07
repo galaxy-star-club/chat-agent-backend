@@ -76,7 +76,7 @@ const providerUrlSchema = z.url().refine((value) => {
  * Conservative loop bound used when AGENT_MAX_TURNS is unset.
  * Values outside 1–8 are rejected rather than clamped.
  */
-export const defaultMaxModelTurns = 4;
+export const defaultMaxModelTurns = 8;
 
 export function getMaxModelTurns(env = process.env): number | null {
   const configured = env.AGENT_MAX_TURNS;
