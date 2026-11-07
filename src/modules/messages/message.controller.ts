@@ -11,7 +11,7 @@ import { InvalidCursorError } from "@/lib/keyset-cursor";
 import { readRequestIdentity } from "@/lib/request-auth.server";
 import { createTraceContext } from "@/lib/trace-context";
 import { ChatNotFoundError } from "@/modules/chats/chat.service";
-import { admitOwnedMessage, ActiveRunError, DispatchNotConfiguredError, IdempotencyConflictError, InsufficientCreditError, RateLimitError } from "@/modules/admission/message-admission.service";
+import { admitOwnedMessage, ActiveRunError, IdempotencyConflictError, InsufficientCreditError, RateLimitError } from "@/modules/admission/message-admission.service";
 import { listOwnedChatMessages } from "./message.service";
 
 const allowedMethods = ["GET", "HEAD", "OPTIONS", "POST"];
@@ -81,7 +81,7 @@ export async function messageController(request: Request, rawChatId: string): Pr
     if (error instanceof ActiveRunError) return errorResponse("ACTIVE_RUN", 409, requestId, headers);
     if (error instanceof IdempotencyConflictError) return errorResponse("IDEMPOTENCY_CONFLICT", 409, requestId, headers);
     if (error instanceof InsufficientCreditError) return errorResponse("INSUFFICIENT_CREDITS", 402, requestId, headers);
-    if (error instanceof DispatchNotConfiguredError || isDatabaseConfigurationError(error)) {
+    if (isDatabaseConfigurationError(error)) {
       return errorResponse("CONFIGURATION_ERROR", 503, requestId, headers);
     }
     return mapErrorToResponse(error, trace, headers);

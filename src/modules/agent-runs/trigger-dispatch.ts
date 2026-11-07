@@ -15,7 +15,7 @@ export class DispatchNotConfiguredError extends Error {
 }
 
 export function triggerDispatchConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
-  return Boolean(env.TRIGGER_SECRET_KEY?.trim());
+  return Boolean(env.TRIGGER_SECRET_KEY?.trim()) && (env.NODE_ENV !== "production" || env.TRIGGER_DISPATCH_ENABLED === "true");
 }
 
 export async function dispatchAdmittedRun(input: z.input<typeof agentRunPayloadSchema>): Promise<string> {

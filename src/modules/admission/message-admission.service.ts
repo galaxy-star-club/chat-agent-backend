@@ -6,24 +6,19 @@ import {
   countRecentOwnedRunsInTransaction,
   createPendingRunInTransaction,
   findAgentRunByIdempotencyInTransaction,
-  getOwnedAgentRunInTransaction,
-  markRunFailedInTransaction,
 } from "@/modules/agent-runs/agent-run.service";
-import { dispatchAdmittedRun, triggerDispatchConfigured, DispatchNotConfiguredError } from "@/modules/agent-runs/trigger-dispatch";
+import { dispatchAdmittedRun, triggerDispatchConfigured } from "@/modules/agent-runs/trigger-dispatch";
 import { attachUploadedMediaInTransaction } from "@/modules/attachments/attachment.service";
-import { ChatNotFoundError, claimChatActiveRun, getOwnedChatInTransaction, releaseChatActiveRun } from "@/modules/chats/chat.service";
+import { ChatNotFoundError, claimChatActiveRun, getOwnedChatInTransaction } from "@/modules/chats/chat.service";
 import {
   applyCreditChangeInTransaction,
   lockCreditAccountInTransaction,
-  refundAdmissionReservationInTransaction,
 } from "@/modules/credits/credit.service";
 import {
   createUserMessageInTransaction,
   findOwnedMessageByClientRequestInTransaction,
 } from "@/modules/messages/message.service";
 import { admissionReservation, submissionWindowMs, submissionsPerMinute } from "./admission-policy";
-
-export { DispatchNotConfiguredError };
 
 export class ActiveRunError extends Error {
   constructor() {
@@ -73,7 +68,6 @@ type AdmitInput = {
 export type OwnedMessageAdmission = MessageAdmission & { executeInline: boolean };
 
 export async function admitOwnedMessage(input: AdmitInput): Promise<OwnedMessageAdmission> {
-  if (!triggerDispatchConfigured()) throw new DispatchNotConfiguredError();
   let admission: MessageAdmission;
   try {
     admission = await withTransaction((transaction) => admitInTransaction(transaction, input));
@@ -82,18 +76,12 @@ export async function admitOwnedMessage(input: AdmitInput): Promise<OwnedMessage
     admission = await withTransaction((transaction) => replayAdmission(transaction, input));
   }
   if (admission.status !== "pending") return { ...admission, executeInline: false };
+  if (!triggerDispatchConfigured()) return { ...admission, executeInline: true };
   try {
     await dispatchAdmittedRun({ runId: admission.runId });
-    // Trigger.dev can accept a run before discovering that this environment has no worker.
-    // Database transitions make this safe when a worker is available too.
     return { ...admission, executeInline: true };
   } catch {
-    return { ...await failAdmittedRun({
-      ownerId: input.ownerId,
-      chatId: admission.chatId,
-      messageId: admission.messageId,
-      runId: admission.runId,
-    }), executeInline: false };
+    return { ...admission, executeInline: true };
   }
 }
 
@@ -161,28 +149,6 @@ async function reconcileAdmission(
   const message = await findOwnedMessageByClientRequestInTransaction(transaction, run.chatId, run.idempotencyKey);
   if (!message || message.runId !== run.id || storedText(message.content) !== text) throw new IdempotencyConflictError();
   return admissionFrom(run, message.id, true);
-}
-
-async function failAdmittedRun(input: {
-  ownerId: string;
-  chatId: string;
-  messageId: string;
-  runId: string;
-}): Promise<MessageAdmission> {
-  return withTransaction(async (transaction) => {
-    const run = await getOwnedAgentRunInTransaction(transaction, input.ownerId, input.runId);
-    if (!run || run.chatId !== input.chatId) throw new Error("Agent run not found.");
-    if (run.status !== "pending") return admissionFrom(run, input.messageId, true);
-    const failed = await markRunFailedInTransaction(transaction, input.runId);
-    if (!failed) {
-      const current = await getOwnedAgentRunInTransaction(transaction, input.ownerId, input.runId);
-      if (!current) throw new Error("Agent run not found.");
-      return admissionFrom(current, input.messageId, true);
-    }
-    await refundAdmissionReservationInTransaction(transaction, input.ownerId, input.runId);
-    await releaseChatActiveRun(transaction, input.chatId, input.runId);
-    return admissionFrom(failed, input.messageId, false);
-  });
 }
 
 function admissionFrom(

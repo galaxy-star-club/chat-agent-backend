@@ -58,4 +58,4 @@ Frontend ← refreshed persisted messages ← assistant drafts
 
 Use pooled `DATABASE_URL` at runtime. `DIRECT_URL` is only for migrations and must not be placed in the Vercel runtime environment.
 
-`trigger dev` runs a local worker in Trigger.dev's Development environment. Production requires a separately deployed Trigger worker and its own Trigger.dev environment variables; a Vercel deployment does not deploy that worker.
+`trigger dev` runs a local worker in Trigger.dev's Development environment. Production uses the browser-status fallback unless `TRIGGER_DISPATCH_ENABLED=true`. Set that flag only after deploying a Trigger worker and configuring its Production environment variables; a Vercel deployment does not deploy that worker.
