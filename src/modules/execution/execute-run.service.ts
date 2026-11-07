@@ -44,9 +44,8 @@ import { failureFromTool, providerTools, skillCatalog, toolByName, toolFailure, 
 
 type Scope = { runId: string; chatId: string; ownerId: string; traceId: string };
 type Loaded = { scope: Scope; status: RunStatus; eligible: boolean };
-export type RunStreamEvent = { type: "draft"; message: { id: string; chatId: string; runId: string | null; role: "assistant"; status: "streaming"; content: ContentBlock[]; createdAt: string; updatedAt: string } };
 
-export async function executeAdmittedRun(runId: string, onEvent?: (event: RunStreamEvent) => Promise<void>): Promise<{ runId: string; status: RunStatus }> {
+export async function executeAdmittedRun(runId: string): Promise<{ runId: string; status: RunStatus }> {
   const loaded = await withTransaction((transaction) => loadRun(transaction, runId));
   if (!loaded) throw new Error("Admitted run was not found.");
   const { scope } = loaded;
@@ -101,7 +100,7 @@ export async function executeAdmittedRun(runId: string, onEvent?: (event: RunStr
         await finalize(scope, outcome);
         return { runId, status: outcome.status };
       }
-      const outcome = await requestModelTurn(scope, session, catalog, model.apiKey, onEvent);
+      const outcome = await requestModelTurn(scope, session, catalog, model.apiKey);
       if (outcome) {
         await finalize(scope, outcome);
         logRun(outcome.status === "completed" ? "info" : "error", "agent_run_finished", scope.traceId, { runId, status: outcome.status, code: outcome.code });
@@ -189,13 +188,7 @@ async function ensureRunning(scope: Scope, model: string): Promise<RunStatus> {
   });
 }
 
-async function requestModelTurn(
-  scope: Scope,
-  session: ExecutionSession,
-  catalog: Awaited<ReturnType<typeof skillCatalog>>,
-  apiKey: string,
-  onEvent?: (event: RunStreamEvent) => Promise<void>,
-): Promise<RunOutcome | null> {
+async function requestModelTurn(scope: Scope, session: ExecutionSession, catalog: Awaited<ReturnType<typeof skillCatalog>>, apiKey: string): Promise<RunOutcome | null> {
   const prepared = await withTransaction(async (transaction) => {
     const run = await getAgentRunInTransaction(transaction, scope.runId);
     if (!run) return null;
@@ -210,7 +203,7 @@ async function requestModelTurn(
     const next: ExecutionSession = { ...session, phase: "requesting", assistantMessageId: message.id, closedBlocks: blocks.length };
     await saveSession(transaction, scope, next);
     const history = await contextFrom(transaction, scope.chatId);
-    return { session: next, history, message };
+    return { session: next, history };
   });
   if (!prepared) return failed("stored_state_invalid");
   if (!prepared.history) return failed("stored_state_invalid");
@@ -220,14 +213,8 @@ async function requestModelTurn(
     apiKey,
     messages: [{ role: "system", content: systemPrompt(catalog) }, ...toProviderMessages(selectContext(prepared.history))],
     tools: providerTools(),
-    onDelta: async (draft) => {
-      if (!onEvent) return;
-      const prefix = parseBlocks(prepared.message.content).slice(0, prepared.session.closedBlocks);
-      await onEvent({ type: "draft", message: streamedMessage(prepared.message, [...prefix, ...draftBlocks(draft)]) });
-    },
     onDraft: async (draft) => {
-      const message = await withTransaction((transaction) => writeDraft(transaction, scope, prepared.session.closedBlocks, draft));
-      if (onEvent) await onEvent({ type: "draft", message: streamedMessage(message) });
+      await withTransaction((transaction) => writeDraft(transaction, scope, prepared.session.closedBlocks, draft));
     },
   });
   return commitModelResult(scope, prepared.session, result);
@@ -468,18 +455,6 @@ async function writeDraft(transaction: DatabaseTransaction, scope: Scope, closed
   return updateMessageInTransaction(transaction, message.id, { content: [...prefix, ...draftBlocks(draft)], status: "streaming" });
 }
 
-function streamedMessage(message: { id: string; chatId: string; runId: string | null; content: unknown; createdAt: Date; updatedAt: Date }, content = parseBlocks(message.content)) {
-  return {
-    id: message.id,
-    chatId: message.chatId,
-    runId: message.runId,
-    role: "assistant" as const,
-    status: "streaming" as const,
-    content,
-    createdAt: message.createdAt.toISOString(),
-    updatedAt: message.updatedAt.toISOString(),
-  };
-}
 
 async function prefixBlocks(transaction: DatabaseTransaction, scope: Scope, closedBlocks: number): Promise<ContentBlock[]> {
   const message = await ensureAssistantMessage(transaction, scope);
