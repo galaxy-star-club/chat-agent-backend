@@ -72,8 +72,7 @@ export async function updateOwnedChatFavorite(
 }
 
 export async function deleteOwnedChatForOwner(ownerId: string, chatId: string) {
-  const result = await withTransaction((transaction) => deleteOwnedChat(transaction, chatId, ownerId));
-  if (result.count !== 1) throw new ChatNotFoundError();
+  await withTransaction((transaction) => deleteOwnedChat(transaction, chatId, ownerId));
 }
 
 export function getOwnedChatInTransaction(
