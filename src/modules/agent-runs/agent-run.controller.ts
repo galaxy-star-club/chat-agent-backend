@@ -7,6 +7,8 @@ import { responseHeaders } from "@/lib/cors";
 import { errorResponse, mapErrorToResponse } from "@/lib/error-response";
 import { readRequestIdentity } from "@/lib/request-auth.server";
 import { createTraceContext } from "@/lib/trace-context";
+import { logRun } from "@/lib/logger";
+import { executeAdmittedRun } from "@/modules/execution/execute-run.service";
 import { getOwnedAgentRunRecord } from "./agent-run.service";
 
 const allowedMethods = ["GET", "HEAD", "OPTIONS"];
@@ -40,6 +42,11 @@ export async function agentRunController(request: Request, rawChatId: string, ra
     const runId = chatIdSchema.parse(rawRunId);
     const run = await getOwnedAgentRunRecord(identity.userId, chatId, runId);
     if (!run) return errorResponse("NOT_FOUND", 404, requestId, headers);
+    if (run.status === "pending") {
+      after(() => executeAdmittedRun(run.id).catch((error: unknown) => {
+        logRun("error", "agent_run_recovery_failed", run.traceId, { runId: run.id, name: error instanceof Error ? error.name : "Error" });
+      }));
+    }
     const response = Response.json(apiSuccessSchema(agentRunRecordSchema).parse({ data: run }), { headers });
     return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
   } catch (error) {
@@ -47,3 +54,4 @@ export async function agentRunController(request: Request, rawChatId: string, ra
     return mapErrorToResponse(error, trace, headers);
   }
 }
+import { after } from "next/server";

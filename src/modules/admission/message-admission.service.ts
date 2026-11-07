@@ -1,9 +1,7 @@
-import { runs } from "@trigger.dev/sdk";
 import { contentBlocksSchema } from "@/contracts/content";
 import { runStatusSchema, type RunStatus } from "@/contracts/run";
 import type { TraceContext } from "@/contracts/trace";
 import { withTransaction, type DatabaseTransaction } from "@/lib/database.server";
-import { logRun } from "@/lib/logger";
 import {
   countRecentOwnedRunsInTransaction,
   createPendingRunInTransaction,
@@ -85,8 +83,10 @@ export async function admitOwnedMessage(input: AdmitInput): Promise<OwnedMessage
   }
   if (admission.status !== "pending") return { ...admission, executeInline: false };
   try {
-    const triggerRunId = await dispatchAdmittedRun({ runId: admission.runId });
-    return { ...admission, executeInline: await runHasNoWorker(triggerRunId, admission.traceId) };
+    await dispatchAdmittedRun({ runId: admission.runId });
+    // Trigger.dev can accept a run before discovering that this environment has no worker.
+    // Database transitions make this safe when a worker is available too.
+    return { ...admission, executeInline: true };
   } catch {
     return { ...await failAdmittedRun({
       ownerId: input.ownerId,
@@ -94,17 +94,6 @@ export async function admitOwnedMessage(input: AdmitInput): Promise<OwnedMessage
       messageId: admission.messageId,
       runId: admission.runId,
     }), executeInline: false };
-  }
-}
-
-// A production Trigger run with no deployed worker stays PENDING_VERSION and never starts.
-async function runHasNoWorker(triggerRunId: string, traceId: string): Promise<boolean> {
-  try {
-    const hosted = await runs.retrieve(triggerRunId);
-    return hosted.status === "PENDING_VERSION";
-  } catch (error) {
-    logRun("error", "agent_run_inline_skipped", traceId, { name: error instanceof Error ? error.name : "Error" });
-    return false;
   }
 }
 
