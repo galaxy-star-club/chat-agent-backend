@@ -5,7 +5,7 @@ import { agentRunRecordSchema } from "@/contracts/run";
 import { getClerkConfig, getFrontendOrigins } from "@/lib/config";
 import { responseHeaders } from "@/lib/cors";
 import { errorResponse, mapErrorToResponse } from "@/lib/error-response";
-import { authenticateRequest } from "@/lib/request-auth.server";
+import { readRequestIdentity } from "@/lib/request-auth.server";
 import { createTraceContext } from "@/lib/trace-context";
 import { getOwnedAgentRunRecord } from "./agent-run.service";
 
@@ -26,6 +26,7 @@ export async function agentRunController(request: Request, rawChatId: string, ra
       headers.set("Allow", allowedMethods.join(", "));
       headers.set("Access-Control-Allow-Methods", allowedMethods.join(", "));
       headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+      headers.set("Access-Control-Allow-Credentials", "true");
       headers.set("Access-Control-Max-Age", "600");
       return new Response(null, { status: 204, headers });
     }
@@ -33,7 +34,7 @@ export async function agentRunController(request: Request, rawChatId: string, ra
       headers.set("Allow", allowedMethods.join(", "));
       return errorResponse("METHOD_NOT_ALLOWED", 405, requestId, headers);
     }
-    const identity = await authenticateRequest(request, clerkConfig, origins);
+    const identity = readRequestIdentity(request, clerkConfig.secretKey);
     if (!identity) return errorResponse("AUTHENTICATION_REQUIRED", 401, requestId, headers);
     const chatId = chatIdSchema.parse(rawChatId);
     const runId = chatIdSchema.parse(rawRunId);

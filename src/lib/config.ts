@@ -52,6 +52,16 @@ export function getDatabaseUrl(env = process.env): string | null {
   return result.success ? result.data : null;
 }
 
+/**
+ * Interactive transactions need a session connection. Neon's pooled URL
+ * cannot hold one, so the client prefers the direct URL when it is set.
+ */
+export function getRuntimeDatabaseUrl(env = process.env): string | null {
+  const direct = databaseUrlSchema.safeParse(env.DATABASE_URL_UNPOOLED ?? env.DIRECT_URL);
+  if (direct.success) return direct.data;
+  return getDatabaseUrl(env);
+}
+
 /** The only model this service is allowed to request. */
 export const freeModelId = "openrouter/free";
 

@@ -60,6 +60,17 @@ export function findOwnedChats(transaction: Prisma.TransactionClient, input: Fin
   });
 }
 
+export function setChatTitleIfEmpty(
+  transaction: Prisma.TransactionClient,
+  chatId: string,
+  title: string,
+) {
+  return transaction.chat.updateMany({
+    where: { id: chatId, title: null },
+    data: { title },
+  });
+}
+
 export function setOwnedChatFavorite(
   transaction: Prisma.TransactionClient,
   id: string,

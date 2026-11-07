@@ -10,38 +10,39 @@ const endpoint = "https://openrouter.ai/api/v1/chat/completions";
 const maxEvents = 10_000;
 
 const usageSchema = z.object({
-  prompt_tokens: z.number().int().nonnegative().max(maxStoredTokens).optional(),
-  completion_tokens: z.number().int().nonnegative().max(maxStoredTokens).optional(),
+  prompt_tokens: z.number().int().nonnegative().max(maxStoredTokens).nullish(),
+  completion_tokens: z.number().int().nonnegative().max(maxStoredTokens).nullish(),
 });
 const toolCallDeltaSchema = z.object({
-  index: z.number().int().nonnegative().optional(),
-  id: z.string().optional(),
+  index: z.number().int().nonnegative().nullish(),
+  id: z.string().nullish(),
   function: z.object({
-    name: z.string().optional(),
-    arguments: z.string().optional(),
-  }).optional(),
+    name: z.string().nullish(),
+    arguments: z.string().nullish(),
+  }).nullish(),
 });
+// Free-model streams send null for unused fields such as delta.reasoning. Rejecting null drops a usable reply.
 const chunkSchema = z.object({
-  model: z.string().optional(),
-  error: z.object({ code: z.union([z.string(), z.number()]).optional() }).optional(),
-  usage: usageSchema.optional(),
+  model: z.string().nullish(),
+  error: z.object({ code: z.union([z.string(), z.number()]).nullish() }).nullish(),
+  usage: usageSchema.nullish(),
   choices: z.array(z.object({
-    finish_reason: z.string().nullable().optional(),
+    finish_reason: z.string().nullish(),
     delta: z.object({
-      content: z.string().optional(),
-      reasoning: z.string().optional(),
-      reasoning_content: z.string().optional(),
-      tool_calls: z.array(toolCallDeltaSchema).optional(),
-    }).optional(),
+      content: z.string().nullish(),
+      reasoning: z.string().nullish(),
+      reasoning_content: z.string().nullish(),
+      tool_calls: z.array(toolCallDeltaSchema).nullish(),
+    }).nullish(),
     message: z.object({
-      content: z.string().nullable().optional(),
-      reasoning: z.string().nullable().optional(),
+      content: z.string().nullish(),
+      reasoning: z.string().nullish(),
       tool_calls: z.array(z.object({
-        id: z.string().optional(),
-        function: z.object({ name: z.string().optional(), arguments: z.string().optional() }).optional(),
-      })).optional(),
-    }).optional(),
-  })).optional(),
+        id: z.string().nullish(),
+        function: z.object({ name: z.string().nullish(), arguments: z.string().nullish() }).nullish(),
+      })).nullish(),
+    }).nullish(),
+  })).nullish(),
 });
 
 export type ProviderTool = {
@@ -67,8 +68,15 @@ export async function streamFreeModel(input: {
   messages: ProviderMessage[];
   tools: ProviderTool[];
   onDraft?: (draft: Draft) => Promise<void>;
+  /** Title calls use a short non-streaming completion. The chat reply stays streamed. */
+  maxTokens?: number;
+  disableReasoning?: boolean;
 }): Promise<ModelCallResult> {
   const empty = result("", "", [], [], null, null, "provider_unavailable");
+  const limited = input.maxTokens;
+  if (limited !== undefined && (!Number.isInteger(limited) || limited < 1 || limited > 64)) {
+    return result("", "", [], [], null, null, "invalid_provider_output");
+  }
   let response: Response;
   try {
     response = await fetch(endpoint, {
@@ -82,9 +90,14 @@ export async function streamFreeModel(input: {
       body: JSON.stringify({
         model: freeModelId,
         messages: input.messages.map(wireMessage),
-        tools: input.tools,
-        stream: true,
-        stream_options: { include_usage: true },
+        ...(input.tools.length > 0 ? { tools: input.tools } : {}),
+        ...(limited === undefined
+          ? { stream: true, stream_options: { include_usage: true } }
+          : {
+            stream: false,
+            max_tokens: limited,
+            ...(input.disableReasoning ? { reasoning: { enabled: false } } : {}),
+          }),
       }),
     });
   } catch {
@@ -211,7 +224,7 @@ function assembleCalls(tools: Map<number, ToolDraft>): Pick<ModelCallResult, "ca
   return { calls, malformed };
 }
 
-function approvedModel(model: string | undefined): string | null {
+function approvedModel(model: string | null | undefined): string | null {
   if (!model) return null;
   const parsed = modelNameSchema.safeParse(model);
   if (!parsed.success) return null;

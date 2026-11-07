@@ -13,7 +13,8 @@ import {
   transitionAgentRunInTransaction,
 } from "@/modules/agent-runs/agent-run.service";
 import { runError, type RunErrorCode } from "@/modules/agent-runs/run-errors";
-import { getChatInTransaction, releaseChatActiveRun } from "@/modules/chats/chat.service";
+import { titleFromModelOutput } from "@/modules/chats/chat-title";
+import { getChatInTransaction, releaseChatActiveRun, saveChatTitleIfEmptyInTransaction } from "@/modules/chats/chat.service";
 import { refundAdmissionReservationInTransaction, settleFreeModelRunInTransaction } from "@/modules/credits/credit.service";
 import {
   createDurableSessionInTransaction,
@@ -66,6 +67,7 @@ export async function executeAdmittedRun(runId: string): Promise<{ runId: string
       await finalize(scope, null);
       return { runId, status: started };
     }
+    await nameUntitledChat(scope, model.apiKey);
     logRun("info", "agent_run_started", scope.traceId, { runId, model: model.model });
     const catalog = await skillCatalog();
     for (let guard = 0; guard < turns + 2; guard += 1) {
@@ -112,6 +114,49 @@ export async function executeAdmittedRun(runId: string): Promise<{ runId: string
     logRun("error", "agent_run_failed", scope.traceId, { runId, name: error instanceof Error ? error.name : "Error" });
     throw error;
   }
+}
+
+// ponytail: at most two free-model calls, first 2,000 characters. A missed title stays untitled.
+async function nameUntitledChat(scope: Scope, apiKey: string): Promise<void> {
+  try {
+    const source = await withTransaction(async (transaction) => {
+      const chat = await getChatInTransaction(transaction, scope.chatId);
+      if (!chat || chat.title?.trim()) return null;
+      const history = await contextFrom(transaction, scope.chatId);
+      const firstUser = history?.find((message) => message.role === "user");
+      const text = firstUser ? plainUserText(firstUser.content) : "";
+      return text ? text.slice(0, 2_000) : null;
+    });
+    if (!source) return;
+    let title: string | null = null;
+    let code = "empty_response";
+    for (let attempt = 0; attempt < 2 && !title; attempt += 1) {
+      const result = await streamFreeModel({
+        apiKey,
+        messages: [{
+          role: "user",
+          content: `Task:\n${source}\n\nReply with only a 2 to 5 word title for that task.`,
+        }],
+        tools: [],
+        maxTokens: 24,
+        disableReasoning: true,
+      });
+      code = result.code;
+      title = titleFromModelOutput(result.text, result.reasoning);
+    }
+    if (!title) {
+      logRun("error", "agent_chat_title", scope.traceId, { runId: scope.runId, code, titled: false });
+      return;
+    }
+    await withTransaction((transaction) => saveChatTitleIfEmptyInTransaction(transaction, scope.chatId, title));
+    logRun("info", "agent_chat_title", scope.traceId, { runId: scope.runId, code, titled: true });
+  } catch (error) {
+    logRun("error", "agent_chat_title", scope.traceId, { runId: scope.runId, name: error instanceof Error ? error.name : "Error" });
+  }
+}
+
+function plainUserText(content: unknown): string {
+  return parseBlocks(content).flatMap((block) => block.type === "text" ? [block.text] : []).join("\n").trim();
 }
 
 async function loadRun(transaction: DatabaseTransaction, runId: string): Promise<Loaded | null> {

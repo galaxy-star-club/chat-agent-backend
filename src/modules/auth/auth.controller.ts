@@ -2,7 +2,7 @@ import { currentSessionResponseSchema } from "@/contracts/auth";
 import { getClerkConfig, getFrontendOrigins } from "@/lib/config";
 import { preflightHeaders, responseHeaders } from "@/lib/cors";
 import { errorResponse, mapErrorToResponse } from "@/lib/error-response";
-import { authenticateRequest } from "@/lib/request-auth.server";
+import { readRequestIdentity } from "@/lib/request-auth.server";
 import { createTraceContext } from "@/lib/trace-context";
 import { getCurrentSession } from "./auth.service";
 
@@ -39,7 +39,7 @@ async function handleAuth(request: Request): Promise<Response> {
       return errorResponse("METHOD_NOT_ALLOWED", 405, requestId, headers);
     }
 
-    const identity = await authenticateRequest(request, clerkConfig, origins);
+    const identity = readRequestIdentity(request, clerkConfig.secretKey);
     if (!identity) {
       return errorResponse("AUTHENTICATION_REQUIRED", 401, requestId, headers);
     }

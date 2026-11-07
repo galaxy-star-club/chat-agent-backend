@@ -8,7 +8,7 @@ Use Node.js 24 and the pinned pnpm version in `package.json`.
 
 ```sh
 pnpm install --frozen-lockfile
-cp .env.example .env.local
+cp .env.example .env
 pnpm exec prisma generate
 pnpm dev
 ```
@@ -39,7 +39,7 @@ The route delegates to the health controller, which adapts HTTP and calls a pure
 
 ## Clerk authentication
 
-Set `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` in `.env.local` from the same Clerk application used by the frontend. The example file intentionally contains no credentials. Do not expose the secret key to the frontend or commit either real value.
+Set `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` in `.env` from the same Clerk application used by the frontend. The example file intentionally contains no credentials. Do not expose the secret key to the frontend or commit either real value.
 
 `GET /api/v1/auth/session` is a minimal protected endpoint. Cross-origin clients must send the Clerk session token as `Authorization: Bearer <session-token>`. The server accepts session tokens only and asks Clerk to verify that the token's authorized party matches one of the exact, validated `FRONTEND_ORIGINS`. Cookie-only requests are not accepted. A successful response contains only `userId` and `sessionId`; missing or invalid authentication returns safe `AUTHENTICATION_REQUIRED` JSON with 401. The route uses the same request ID, CORS, no-store, error, controller and service conventions as health. Its preflight permits the `Authorization` header without enabling credentialed CORS.
 

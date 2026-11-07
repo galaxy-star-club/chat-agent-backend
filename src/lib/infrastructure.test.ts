@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { traceContextSchema } from "@/contracts/trace";
 import { mapErrorToResponse } from "./error-response";
 import { redact } from "./logger";
+import { readRequestIdentity, sealIdentity } from "./request-auth.server";
 import { createTraceContext } from "./trace-context";
 
 afterEach(() => vi.restoreAllMocks());
@@ -35,6 +36,15 @@ describe("request infrastructure", () => {
     const log = consoleError.mock.calls[0]?.[0];
     expect(JSON.parse(String(log))).toMatchObject({ level: "error", event: "request_failed", ...trace, error: { name: "Error" } });
     expect(String(log)).not.toContain("database password");
+  });
+
+  it("accepts only a sealed identity for this request", () => {
+    const secret = "test-secret";
+    const identity = { userId: "user_1", sessionId: "sess_1" };
+    const request = new Request("http://localhost/api/v1/chats", { headers: { "x-agent-identity": sealIdentity(identity, secret) } });
+    expect(readRequestIdentity(request, secret)).toEqual(identity);
+    const forged = new Request("http://localhost/api/v1/chats", { headers: { "x-agent-identity": sealIdentity(identity, "other-secret") } });
+    expect(readRequestIdentity(forged, secret)).toBeNull();
   });
 
   it.each([

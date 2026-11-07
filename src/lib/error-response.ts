@@ -23,6 +23,7 @@ export function errorResponse(code: ApiErrorCode, status: number, requestId: str
 }
 
 export function mapErrorToResponse(error: unknown, trace: TraceContext, headers: Headers): Response {
-  logError("request_failed", trace, { error: error instanceof Error ? error : new Error("Unknown thrown value") });
+  const code = error && typeof error === "object" && "code" in error && typeof error.code === "string" ? error.code : undefined;
+  logError("request_failed", trace, { error: error instanceof Error ? error : new Error("Unknown thrown value"), code });
   return errorResponse("INTERNAL_ERROR", 500, trace.requestId, headers);
 }

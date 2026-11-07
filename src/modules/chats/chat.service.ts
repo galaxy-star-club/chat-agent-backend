@@ -1,3 +1,4 @@
+import { chatTitleSchema } from "@/contracts/chats";
 import { withTransaction, type DatabaseTransaction } from "@/lib/database.server";
 import {
   claimActiveRun,
@@ -7,6 +8,7 @@ import {
   findOwnedChat,
   findOwnedChats,
   releaseActiveRun,
+  setChatTitleIfEmpty,
   setOwnedChatFavorite,
 } from "./chat.repository";
 import { decodeKeysetCursor, encodeKeysetCursor } from "@/lib/keyset-cursor";
@@ -84,6 +86,16 @@ export function getOwnedChatInTransaction(
 
 export function getChatInTransaction(transaction: DatabaseTransaction, chatId: string) {
   return findChat(transaction, chatId);
+}
+
+export function saveChatTitleIfEmptyInTransaction(
+  transaction: DatabaseTransaction,
+  chatId: string,
+  title: string,
+) {
+  const parsed = chatTitleSchema.safeParse(title);
+  if (!parsed.success) return Promise.resolve({ count: 0 });
+  return setChatTitleIfEmpty(transaction, chatId, parsed.data);
 }
 
 export function claimChatActiveRun(

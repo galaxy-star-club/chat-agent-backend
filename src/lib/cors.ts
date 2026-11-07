@@ -6,6 +6,7 @@ export function responseHeaders(requestId: string, allowedOrigin?: string): Head
   });
   if (allowedOrigin) {
     headers.set("Access-Control-Allow-Origin", allowedOrigin);
+    headers.set("Access-Control-Allow-Credentials", "true");
     headers.set("Access-Control-Expose-Headers", "x-request-id");
   }
   return headers;

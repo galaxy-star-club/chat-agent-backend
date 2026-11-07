@@ -8,7 +8,7 @@ import { getClerkConfig, getFrontendOrigins } from "@/lib/config";
 import { responseHeaders } from "@/lib/cors";
 import { errorResponse, mapErrorToResponse } from "@/lib/error-response";
 import { InvalidCursorError } from "@/lib/keyset-cursor";
-import { authenticateRequest } from "@/lib/request-auth.server";
+import { readRequestIdentity } from "@/lib/request-auth.server";
 import { createTraceContext } from "@/lib/trace-context";
 import { ChatNotFoundError } from "@/modules/chats/chat.service";
 import { admitOwnedMessage, ActiveRunError, DispatchNotConfiguredError, IdempotencyConflictError, InsufficientCreditError, RateLimitError } from "@/modules/admission/message-admission.service";
@@ -31,6 +31,7 @@ export async function messageController(request: Request, rawChatId: string): Pr
       headers.set("Allow", allowedMethods.join(", "));
       headers.set("Access-Control-Allow-Methods", allowedMethods.join(", "));
       headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+      headers.set("Access-Control-Allow-Credentials", "true");
       headers.set("Access-Control-Max-Age", "600");
       return new Response(null, { status: 204, headers });
     }
@@ -38,7 +39,7 @@ export async function messageController(request: Request, rawChatId: string): Pr
       headers.set("Allow", allowedMethods.join(", "));
       return errorResponse("METHOD_NOT_ALLOWED", 405, requestId, headers);
     }
-    const identity = await authenticateRequest(request, clerkConfig, origins);
+    const identity = readRequestIdentity(request, clerkConfig.secretKey);
     if (!identity) return errorResponse("AUTHENTICATION_REQUIRED", 401, requestId, headers);
     const chatId = chatIdSchema.parse(rawChatId);
     if (request.method === "POST") {

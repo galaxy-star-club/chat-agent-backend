@@ -11,7 +11,7 @@ import {
 import { getClerkConfig, getFrontendOrigins } from "@/lib/config";
 import { errorResponse, mapErrorToResponse } from "@/lib/error-response";
 import { InvalidCursorError } from "@/lib/keyset-cursor";
-import { authenticateRequest } from "@/lib/request-auth.server";
+import { readRequestIdentity } from "@/lib/request-auth.server";
 import { responseHeaders } from "@/lib/cors";
 import { createTraceContext } from "@/lib/trace-context";
 import {
@@ -49,6 +49,7 @@ export async function chatController(request: Request, resource: Resource, rawCh
       headers.set("Allow", allowed.join(", "));
       headers.set("Access-Control-Allow-Methods", allowed.join(", "));
       headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+      headers.set("Access-Control-Allow-Credentials", "true");
       headers.set("Access-Control-Max-Age", "600");
       return new Response(null, { status: 204, headers });
     }
@@ -57,7 +58,7 @@ export async function chatController(request: Request, resource: Resource, rawCh
       return errorResponse("METHOD_NOT_ALLOWED", 405, requestId, headers);
     }
 
-    const identity = await authenticateRequest(request, clerkConfig, origins);
+    const identity = readRequestIdentity(request, clerkConfig.secretKey);
     if (!identity) return errorResponse("AUTHENTICATION_REQUIRED", 401, requestId, headers);
 
     const chatId = resource === "collection" ? undefined : chatIdSchema.parse(rawChatId);
