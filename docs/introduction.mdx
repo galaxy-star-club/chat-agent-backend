@@ -1,0 +1,19 @@
+---
+title: Introduction
+description: REST API for Agentic Chat.
+---
+
+The Agentic Chat API manages authenticated chats, messages, uploads, and agent
+runs. All response bodies use an envelope:
+
+```json
+{ "data": {} }
+```
+
+The API base URL is `https://chat-agent-backend-q5q1.vercel.app/api/v1` in the
+hosted environment.
+
+<Note>
+Only the health and database-readiness endpoints are public. All chat endpoints
+require a Clerk session bearer token.
+</Note>

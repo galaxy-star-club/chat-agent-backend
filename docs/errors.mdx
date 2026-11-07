@@ -1,0 +1,21 @@
+---
+title: Errors
+description: Error response format and common status codes.
+---
+
+Errors have this shape:
+
+```json
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "The request is invalid.",
+    "requestId": "f7c4b100-1234-4cb2-a11a-7da5dbbfc000"
+  }
+}
+```
+
+Common codes: `AUTHENTICATION_REQUIRED` (401), `NOT_FOUND` (404),
+`ACTIVE_RUN` and `IDEMPOTENCY_CONFLICT` (409), `RATE_LIMITED` (429), and
+`CONFIGURATION_ERROR` or `DATABASE_UNAVAILABLE` (503). Include `requestId`
+when reporting an issue.

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Agentic Chat API",
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#2563eb",
+    "light": "#60a5fa",
+    "dark": "#1d4ed8",
+    "background": {
+      "dark": "#0b1020",
+      "light": "#ffffff"
+    }
+  },
+  "navigation": {
+    "anchors": [
+      {
+        "anchor": "Documentation",
+        "pages": ["introduction", "authentication", "errors"]
+      },
+      {
+        "anchor": "API Reference",
+        "openapi": "openapi.yaml"
+      }
+    ]
+  }
+}

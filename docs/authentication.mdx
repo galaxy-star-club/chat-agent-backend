@@ -1,0 +1,13 @@
+---
+title: Authentication
+description: Authenticate requests with a Clerk session token.
+---
+
+Pass a current Clerk session token in the `Authorization` header:
+
+```http
+Authorization: Bearer <session-token>
+```
+
+Requests without a valid token receive `401 AUTHENTICATION_REQUIRED`. The API
+uses the token identity to scope every chat, message, attachment, and run.

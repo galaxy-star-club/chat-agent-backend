@@ -1,0 +1,438 @@
+openapi: 3.1.0
+info:
+  title: Agentic Chat API
+  version: 1.0.0
+  description: REST API for authenticated chats and durable agent runs.
+servers:
+  - url: https://chat-agent-backend-q5q1.vercel.app/api/v1
+    description: Production
+  - url: http://localhost:3001/api/v1
+    description: Local development
+security:
+  - ClerkBearer: []
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Check API health
+      security: []
+      responses:
+        '200':
+          description: API is available.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthEnvelope'
+  /readiness/database:
+    get:
+      operationId: getDatabaseReadiness
+      summary: Check database readiness
+      security: []
+      responses:
+        '200':
+          description: Database is ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '503':
+          $ref: '#/components/responses/Error'
+  /auth/session:
+    get:
+      operationId: getCurrentSession
+      summary: Get current session identity
+      responses:
+        '200':
+          description: Current authenticated user and session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionEnvelope'
+        '401':
+          $ref: '#/components/responses/Error'
+  /chats:
+    get:
+      operationId: listChats
+      summary: List chats
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: query
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: favorite
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: A page of owned chats.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChatPageEnvelope' }
+        '401': { $ref: '#/components/responses/Error' }
+    post:
+      operationId: createChat
+      summary: Create a chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+      responses:
+        '201':
+          description: Chat created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChatEnvelope' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /chats/{chatId}:
+    parameters:
+      - $ref: '#/components/parameters/ChatId'
+    get:
+      operationId: getChat
+      summary: Get a chat
+      responses:
+        '200':
+          description: Owned chat.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChatEnvelope' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      operationId: deleteChat
+      summary: Delete a chat
+      responses:
+        '204': { description: Chat deleted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /chats/{chatId}/favorite:
+    parameters:
+      - $ref: '#/components/parameters/ChatId'
+    patch:
+      operationId: updateChatFavorite
+      summary: Set chat favorite status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [isFavorite]
+              properties:
+                isFavorite: { type: boolean }
+      responses:
+        '200':
+          description: Updated chat.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChatEnvelope' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /chats/{chatId}/messages:
+    parameters:
+      - $ref: '#/components/parameters/ChatId'
+    get:
+      operationId: listMessages
+      summary: List chat messages
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of owned messages.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessagePageEnvelope' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    post:
+      operationId: sendMessage
+      summary: Send a message and admit an agent run
+      description: Reuse the same idempotency key only when retrying the same payload.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [idempotencyKey, text]
+              properties:
+                idempotencyKey: { type: string, format: uuid }
+                text: { type: string, minLength: 1, maxLength: 1000000 }
+      responses:
+        '201':
+          description: New message and agent run admitted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdmissionEnvelope' }
+        '200':
+          description: Existing idempotent admission returned.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdmissionEnvelope' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '402': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /chats/{chatId}/runs/{runId}:
+    parameters:
+      - $ref: '#/components/parameters/ChatId'
+      - $ref: '#/components/parameters/RunId'
+    get:
+      operationId: getAgentRun
+      summary: Get agent-run status
+      responses:
+        '200':
+          description: Current run status and usage.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgentRunEnvelope' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /chats/{chatId}/attachments/options:
+    parameters:
+      - $ref: '#/components/parameters/ChatId'
+    post:
+      operationId: createAttachmentUpload
+      summary: Create attachment upload options
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [files]
+              properties:
+                files:
+                  type: array
+                  minItems: 1
+                  maxItems: 4
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [name, type, size]
+                    properties:
+                      name: { type: string, maxLength: 255 }
+                      type: { $ref: '#/components/schemas/MediaType' }
+                      size: { type: integer, minimum: 1, maximum: 536870912 }
+      responses:
+        '200':
+          description: Upload parameters and pending attachment records.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadOptionsEnvelope' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /chats/{chatId}/attachments/complete:
+    parameters:
+      - $ref: '#/components/parameters/ChatId'
+    post:
+      operationId: completeAttachmentUpload
+      summary: Complete attachment upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [assemblyUrl, attachmentIds]
+              properties:
+                assemblyUrl: { type: string, format: uri }
+                attachmentIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 4
+                  items: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Ready attachment records.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompleteUploadEnvelope' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    ClerkBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ChatId:
+      name: chatId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string, maxLength: 512 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+  responses:
+    Error:
+      description: API error.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    DataEnvelope:
+      type: object
+      required: [data]
+      properties: { data: {} }
+    HealthEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [status, service, contractVersion]
+          properties:
+            status: { type: string, enum: [ok] }
+            service: { type: string, enum: [agentic-chat-api] }
+            contractVersion: { type: string, example: 1.0.0 }
+    SessionEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [userId, sessionId]
+          properties:
+            userId: { type: string }
+            sessionId: { type: string }
+    Chat:
+      type: object
+      required: [id, title, isFavorite, activeRunId, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: [string, 'null'] }
+        isFavorite: { type: boolean }
+        activeRunId: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ChatEnvelope:
+      type: object
+      properties: { data: { $ref: '#/components/schemas/Chat' } }
+    ChatPageEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/ChatPage'
+    ChatPage:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Chat' } }
+        pageInfo: { $ref: '#/components/schemas/PageInfo' }
+    Message:
+      type: object
+      required: [id, chatId, runId, role, status, content, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        chatId: { type: string, format: uuid }
+        runId: { type: [string, 'null'], format: uuid }
+        role: { type: string, enum: [user, assistant, system, tool] }
+        status: { type: string, enum: [streaming, completed, failed, cancelled] }
+        content: { type: array, description: Structured rich-content blocks. }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    MessagePageEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/Message' } }
+            pageInfo: { $ref: '#/components/schemas/PageInfo' }
+    PageInfo:
+      type: object
+      properties:
+        nextCursor: { type: [string, 'null'] }
+        hasMore: { type: boolean }
+    AdmissionEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            chatId: { type: string, format: uuid }
+            messageId: { type: string, format: uuid }
+            runId: { type: string, format: uuid }
+            status: { type: string, enum: [pending, running, waiting, completed, failed, cancelled] }
+            trace: { type: object }
+    AgentRunEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            chatId: { type: string, format: uuid }
+            status: { type: string, enum: [pending, running, waiting, completed, failed, cancelled] }
+            requestedModel: { type: [string, 'null'] }
+            routedModel: { type: [string, 'null'] }
+            usage: { type: [object, 'null'] }
+            error: { type: [object, 'null'] }
+            traceId: { type: string }
+    MediaType:
+      type: string
+      enum: [image/jpeg, image/png, image/webp, image/gif, video/mp4, video/webm, video/quicktime, audio/mpeg, audio/wav, audio/ogg, audio/mp4]
+    Attachment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        filename: { type: string }
+        mediaType: { $ref: '#/components/schemas/MediaType' }
+        byteSize: { type: integer }
+        position: { type: integer }
+        status: { type: string, enum: [pending, ready, failed] }
+        url: { type: [string, 'null'], format: uri }
+    UploadOptionsEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            params: { type: string }
+            signature: { type: string }
+            attachments: { type: array, items: { $ref: '#/components/schemas/Attachment' } }
+    CompleteUploadEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            attachments: { type: array, items: { $ref: '#/components/schemas/Attachment' } }
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: { type: string, example: INVALID_REQUEST }
+            message: { type: string }
+            requestId: { type: string, format: uuid }
